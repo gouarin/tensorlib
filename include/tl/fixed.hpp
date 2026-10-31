@@ -84,16 +84,17 @@ namespace tl
         constexpr decltype(auto) at(T* data, I... index) noexcept
         {
             constexpr std::array<std::size_t, sizeof...(N)> extents{N...};
+            const std::array<std::size_t, sizeof...(I)> indices{static_cast<std::size_t>(index)...};
             std::size_t offset = 0;
-            std::size_t axis   = 0;
-            ((detail::check_index(static_cast<std::size_t>(index), extents[axis]),
-              offset = (offset * extents[axis]) + static_cast<std::size_t>(index),
-              ++axis),
-             ...);
-            std::size_t block = 1;
-            for (std::size_t rest = sizeof...(I); rest < sizeof...(N); ++rest)
+            for (std::size_t axis = 0; axis < indices.size(); ++axis)
             {
-                block *= extents[rest];
+                detail::check_index(indices[axis], extents[axis]);
+                offset = (offset * extents[axis]) + indices[axis];
+            }
+            std::size_t block = 1;
+            for (std::size_t axis = indices.size(); axis < extents.size(); ++axis)
+            {
+                block *= extents[axis];
             }
             if constexpr (sizeof...(I) == sizeof...(N))
             {
