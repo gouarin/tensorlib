@@ -1,7 +1,7 @@
 configure_file("${PROJECT_SOURCE_DIR}/include/tl/version.hpp.in"
     "${PROJECT_BINARY_DIR}/include/tl/version.hpp" @ONLY)
 
-add_library(tensorlib_core version.cpp)
+add_library(tensorlib_core assert.cpp version.cpp)
 add_library(tensorlib::core ALIAS tensorlib_core)
 set_target_properties(tensorlib_core PROPERTIES
     EXPORT_NAME core

@@ -43,6 +43,14 @@ The category of a tensor container, set by how much of its shape is known at com
 A small tensor whose full shape is known at compile time, so its storage lives inline (like `std::array`, or `xtensor_fixed`). Used for local computations and as the element type of larger tensors; never partitioned.
 _Avoid_: static tensor, small tensor
 
+**Fixed view**:
+A reference to a block of a fixed-shape tensor, made by indexing it with fewer indices than its rank. Writing through it writes into that fixed-shape tensor.
+_Avoid_: row, slice (a view of a tensor)
+
+**Element type**:
+The type of one element of a tensor: a scalar, a fixed-shape tensor of scalars, or a user type stored exactly like one. It is described by its scalar and its component shape.
+_Avoid_: dtype (its run-time description), value type
+
 **Fixed-rank tensor**:
 A tensor whose number of dimensions is known at compile time but whose extents are set at run time (like `xtensor`).
 _Avoid_: static-dim tensor
