@@ -1,0 +1,23 @@
+# Doxygen reads the public headers and writes XML for Breathe; Sphinx builds the site.
+# docs/source/conf.py runs it from this directory.
+PROJECT_NAME         = "tensorlib"
+INPUT                = ../include
+FILE_PATTERNS        = *.hpp *.hpp.in
+EXTENSION_MAPPING    = in=C++
+RECURSIVE            = YES
+OUTPUT_DIRECTORY     = ../build/doxygen
+GENERATE_XML         = YES
+GENERATE_HTML        = NO
+GENERATE_LATEX       = NO
+QUIET                = YES
+JAVADOC_AUTOBRIEF    = YES
+BUILTIN_STL_SUPPORT  = YES
+# Initializers show build-time values such as the version template; the docs give values in prose.
+MAX_INITIALIZER_LINES = 0
+# The internals in tl::detail are not part of the interface.
+EXCLUDE_SYMBOLS      = detail tl::detail
+EXCLUDE_PATTERNS     = */tl/detail/*
+# Every public entity must be documented, and every warning fails the build.
+WARN_IF_UNDOCUMENTED = YES
+WARN_NO_PARAMDOC     = YES
+WARN_AS_ERROR        = FAIL_ON_WARNINGS

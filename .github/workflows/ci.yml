@@ -129,3 +129,19 @@ jobs:
         run: python3 tools/ci/check_facades.py --compiler clang++-21 include build/linux-ci/include
       - name: clang-tidy
         run: git ls-files '*.cpp' | grep -v -e '^.scratch/' -e '^tools/ci/tests/' -e '^tests/install/' | xargs clang-tidy-21 -p build/linux-ci --quiet --warnings-as-errors='*'
+
+  docs:
+    name: Documentation
+    runs-on: ubuntu-24.04
+    steps:
+      - uses: actions/checkout@v4
+      - uses: mamba-org/setup-micromamba@v2
+        with:
+          environment-file: docs/environment.yml
+      - name: Build the site (Doxygen and Sphinx warnings are errors)
+        shell: bash -el {0}
+        run: sphinx-build -W -n -b html docs/source build/docs
+      - uses: actions/upload-artifact@v4
+        with:
+          name: documentation
+          path: build/docs

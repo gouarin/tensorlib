@@ -21,6 +21,22 @@ clang-format -i <files>
 clang-tidy -p build/linux-debug <files>
 ```
 
+## Documentation
+
+The interface is documented in two places, written in the same pull request as the code:
+
+- a Doxygen comment on every public entity of `include/tl/` (`@brief`, `@tparam`, `@param`, `@return`, and a short `@code` example when it helps);
+- a page of the Sphinx site in `docs/source/`, in MyST Markdown, that introduces the entity in a few sentences, includes its example from `examples/`, and pulls the Doxygen entries through Breathe.
+
+The site builds with pinned tools from `docs/environment.yml` (conda-forge):
+
+```bash
+micromamba create -n tensorlib-docs -f docs/environment.yml
+micromamba run -n tensorlib-docs sphinx-build -W -n -b html docs/source build/docs
+```
+
+The build runs Doxygen itself and fails on any warning, including an undocumented public entity or parameter. Open `build/docs/index.html` to read the result. CI builds the same site and attaches it to each run as the `documentation` artifact.
+
 ## Style rules
 
 The full rules are in [section 15 of the spec](.scratch/core-architecture/spec.md#15-style-rules). Tools check most of them: clang-format, clang-tidy, compiler warnings, and CI scripts for the public header whitelist and the one-line facade rule. A reviewer checks the rest with this list:
@@ -29,6 +45,7 @@ The full rules are in [section 15 of the spec](.scratch/core-architecture/spec.m
 - There is one way to write each thing: no second spelling of an operation, no convenience member next to a free function.
 - Extensions use the mechanisms of [ADR 0011](docs/adr/0011-thin-templates-over-an-erased-core-and-layered-extension-points.md): traits for element types, run-time registries for behaviour, compositions for new operations.
 - A public function reads without opening its `.cpp`: its name, its parameters and its documentation example say what it does.
+- Every public entity has a Doxygen comment and appears on a page of the Sphinx site.
 - Every public function has a documentation example that CI compiles and runs on the serial backend.
 - Every fixed bug comes with a regression test.
 

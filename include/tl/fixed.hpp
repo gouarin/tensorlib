@@ -11,23 +11,10 @@
 
 namespace tl
 {
-    // A small tensor whose shape is known at compile time, stored inline in C order. It is a
-    // plain aggregate, evaluated eagerly and usable in constant expressions:
-    //
-    //     tl::fixed<double, 3> v{1., 2., 3.};
-    //     tl::fixed<double, 2, 2> m{1., 2., 3., 4.};   // or tl::fixed_from({{1., 2.}, {3., 4.}})
-    //     double x = m(1, 0);                          // 3.
-    //     m(1) = v2;                                   // m(1) is a view of row 1
-    //
-    // `==` compares whole values; tl::equal, tl::less and the other Array API comparisons work
-    // element by element.
     template <scalar T, std::size_t... N>
         requires(sizeof...(N) >= 1 && sizeof...(N) <= 4 && ((N > 0) && ...))
     struct fixed;
 
-    // A reference to a block of a `fixed`, made by indexing it with fewer indices than its
-    // rank. Copying a view gives another view of the same elements; assigning to it writes
-    // them. T is const for a view of a const `fixed`.
     template <class T, std::size_t... N>
     class fixed_view;
 
@@ -181,28 +168,67 @@ namespace tl
         }
     }
 
+    /**
+     * @brief A small tensor whose shape is known at compile time, stored inline.
+     *
+     * A `fixed` holds its elements in a flat array, in C order (the last index varies
+     * fastest). It is a plain aggregate: it is trivially copyable, it has exactly the layout
+     * of `T[N0][N1]...`, and every operation on it is evaluated eagerly and can be used in
+     * constant expressions. It is used for local computations and as the element type of
+     * larger tensors, such as a field of 3-vectors.
+     *
+     * Values are written as a flat list in C order, or with nested braces through
+     * tl::fixed_from(). `{}` gives zeros.
+     *
+     * @code
+     * tl::fixed<double, 3> v{1., 2., 3.};
+     * tl::fixed<double, 2, 2> m{1., 2., 3., 4.};              // m(1, 0) == 3.
+     * tl::fixed<double, 2, 2> same = tl::fixed_from({{1., 2.}, {3., 4.}});
+     * @endcode
+     *
+     * `==` and `!=` compare whole values. tl::equal(), tl::less() and the other Array API
+     * comparisons compare element by element.
+     *
+     * @tparam T Element type, one of tl::scalar.
+     * @tparam N Extent of each axis, 1 to 4 axes, each extent at least 1.
+     */
     template <scalar T, std::size_t... N>
         requires(sizeof...(N) >= 1 && sizeof...(N) <= 4 && ((N > 0) && ...))
     struct fixed
     {
+        /// The elements in C order. Prefer `operator()` to reach them by index.
         std::array<T, (N * ...)> elements;
 
+        /// @brief The extent of each axis. @return `{N...}`.
         static constexpr std::array<std::size_t, sizeof...(N)> shape() noexcept
         {
             return {N...};
         }
 
+        /// @brief The elements in C order. @return Pointer to the first one.
         constexpr T* data() noexcept
         {
             return elements.data();
         }
 
+        /// @brief The elements in C order. @return Pointer to the first one.
         constexpr const T* data() const noexcept
         {
             return elements.data();
         }
 
-        // As many indices as the rank give an element; fewer give a view of a block.
+        /**
+         * @brief Element or block at the given indices.
+         *
+         * With as many indices as the rank, returns a reference to the element. With fewer,
+         * returns a tl::fixed_view of the block those leading indices select: `m(1)` is row 1
+         * of a matrix, and writing to it writes into `m`.
+         *
+         * With `TL_ENABLE_ASSERTIONS` defined, an index past its extent aborts with a message.
+         *
+         * @param index One index per leading axis, from 1 to the rank.
+         * @return `T&`, or a `tl::fixed_view<T, ...>` of the remaining axes.
+         */
         template <std::convertible_to<std::size_t>... I>
             requires(sizeof...(I) >= 1 && sizeof...(I) <= sizeof...(N))
         constexpr decltype(auto) operator()(I... index) & noexcept
@@ -210,6 +236,12 @@ namespace tl
             return detail::at<N...>(data(), index...);
         }
 
+        /**
+         * @brief Element or read-only block at the given indices.
+         *
+         * @param index One index per leading axis, from 1 to the rank.
+         * @return `const T&`, or a `tl::fixed_view<const T, ...>` of the remaining axes.
+         */
         template <std::convertible_to<std::size_t>... I>
             requires(sizeof...(I) >= 1 && sizeof...(I) <= sizeof...(N))
         constexpr decltype(auto) operator()(I... index) const& noexcept
@@ -217,6 +249,12 @@ namespace tl
             return detail::at<N...>(data(), index...);
         }
 
+        /**
+         * @brief Element of a temporary, by value.
+         *
+         * @param index One index per axis.
+         * @return A copy of the element.
+         */
         template <std::convertible_to<std::size_t>... I>
             requires(sizeof...(I) == sizeof...(N))
         constexpr T operator()(I... index) && noexcept
@@ -224,31 +262,71 @@ namespace tl
             return detail::at<N...>(data(), index...);
         }
 
-        // A view of a temporary would dangle.
+        /// A block of a temporary cannot be viewed: the view would dangle.
         template <std::convertible_to<std::size_t>... I>
             requires(sizeof...(I) >= 1 && sizeof...(I) < sizeof...(N))
         void operator()(I... index) && = delete;
 
-        friend constexpr bool operator==(const fixed&, const fixed&) = default;
+        /// True when every element of `a` equals the element of `b` at the same position.
+        friend constexpr bool operator==(const fixed& a, const fixed& b) = default;
     };
 
+    /**
+     * @brief A reference to a block of a tl::fixed.
+     *
+     * Indexing a `fixed` with fewer indices than its rank gives a view of the block those
+     * indices select. The view refers to the elements of the `fixed`; it does not own them,
+     * so it must not outlive it.
+     *
+     * - Copying a view gives another view of the same elements.
+     * - Assigning to a view writes the elements: from a `fixed` or a view of the same shape
+     *   and element type, or from a scalar, which fills the block.
+     * - Converting a view to tl::fixed copies the values.
+     *
+     * @code
+     * tl::fixed<double, 2, 2> m{};
+     * m(1) = tl::fixed<double, 2>{3., 4.};     // writes row 1 of m
+     * m(0) = 7.;                               // fills row 0
+     * tl::fixed<double, 2> row = m(1);         // a copy: later writes to m do not reach it
+     * @endcode
+     *
+     * @tparam T Element type, `const`-qualified for a view of a const `fixed`, which is
+     *           read-only.
+     * @tparam N Extent of each axis of the block.
+     */
     template <class T, std::size_t... N>
     class fixed_view
     {
       public:
 
+        /// The tl::fixed a view converts to.
         using value_type = fixed<std::remove_const_t<T>, N...>;
 
+        /**
+         * @brief View of the block whose first element is `data`.
+         *
+         * Indexing a tl::fixed creates views; this constructor serves that purpose.
+         *
+         * @param data First element of a block of shape `N...`, stored in C order.
+         */
         constexpr explicit fixed_view(T* data) noexcept
             : m_data(data)
         {
         }
 
+        /// Another view of the same elements.
         constexpr fixed_view(const fixed_view&) noexcept = default;
-        constexpr fixed_view(fixed_view&&) noexcept      = default;
-        constexpr ~fixed_view()                          = default;
+        /// Another view of the same elements.
+        constexpr fixed_view(fixed_view&&) noexcept = default;
+        /// Leaves the elements untouched.
+        constexpr ~fixed_view() = default;
 
-        // Assigning writes the elements, like a tl::view.
+        /**
+         * @brief Writes the elements of `other` into the block.
+         *
+         * @param other View of the same shape and element type.
+         * @return This view.
+         */
         // Self-assignment copies each element onto itself, which is harmless.
         constexpr fixed_view& operator=(const fixed_view& other) noexcept // NOLINT(bugprone-unhandled-self-assignment)
             requires(!std::is_const_v<T>)
@@ -256,12 +334,24 @@ namespace tl
             return assign(other);
         }
 
+        /**
+         * @brief Writes the elements of `other` into the block.
+         *
+         * @param other View of the same shape and element type.
+         * @return This view.
+         */
         constexpr fixed_view& operator=(fixed_view&& other) noexcept
             requires(!std::is_const_v<T>)
         {
             return assign(other);
         }
 
+        /**
+         * @brief Writes the elements of a tl::fixed or of another view into the block.
+         *
+         * @param other `fixed` or view of the same shape and element type.
+         * @return This view.
+         */
         template <class F>
             requires(!std::is_const_v<T> && detail::same_fixed<F, fixed_view>)
         constexpr fixed_view& operator=(const F& other) noexcept
@@ -269,8 +359,14 @@ namespace tl
             return assign(other);
         }
 
-        template <detail::weak_scalar S>
-            requires(!std::is_const_v<T>)
+        /**
+         * @brief Fills the block with one value.
+         *
+         * @param value Arithmetic value, converted to the element type.
+         * @return This view.
+         */
+        template <class S>
+            requires(std::is_arithmetic_v<S> && !std::is_const_v<T>)
         constexpr fixed_view& operator=(S value) noexcept
         {
             for (std::size_t i = 0; i < detail::product(shape()); ++i)
@@ -280,16 +376,24 @@ namespace tl
             return *this;
         }
 
+        /// @brief The extent of each axis of the block. @return `{N...}`.
         static constexpr std::array<std::size_t, sizeof...(N)> shape() noexcept
         {
             return {N...};
         }
 
+        /// @brief The elements of the block in C order. @return Pointer to the first one.
         constexpr T* data() const noexcept
         {
             return m_data;
         }
 
+        /**
+         * @brief Element or sub-block at the given indices, as for tl::fixed.
+         *
+         * @param index One index per leading axis of the block.
+         * @return `T&`, or a view of the remaining axes.
+         */
         template <std::convertible_to<std::size_t>... I>
             requires(sizeof...(I) >= 1 && sizeof...(I) <= sizeof...(N))
         constexpr decltype(auto) operator()(I... index) const noexcept
@@ -297,7 +401,7 @@ namespace tl
             return detail::at<N...>(m_data, index...);
         }
 
-        // The values the view refers to, copied.
+        /// @brief Copies the values the view refers to. @return A tl::fixed holding them.
         constexpr operator value_type() const noexcept // NOLINT(google-explicit-constructor,hicpp-explicit-conversions)
         {
             value_type copy{};
@@ -323,9 +427,21 @@ namespace tl
         T* m_data;
     };
 
+    /**
+     * @brief A tl::fixed of rank 2 written with nested braces, one pair per row.
+     *
+     * @code
+     * constexpr auto m = tl::fixed_from({{1., 2.}, {3., 4.}});   // tl::fixed<double, 2, 2>
+     * @endcode
+     *
+     * The flat form `tl::fixed<double, 2, 2>{1., 2., 3., 4.}` gives the same value.
+     *
+     * @param values Nested braces whose shape gives the extents of the result.
+     * @return The tl::fixed holding `values`.
+     */
+    // Nested braces deduce only C arrays, hence the C-array parameters.
     template <scalar T, std::size_t N0, std::size_t N1>
-    constexpr fixed<T, N0, N1> fixed_from(const T (&values)[N0][N1]) noexcept // NOLINT(*-avoid-c-arrays): nested braces deduce only C
-                                                                              // arrays
+    constexpr fixed<T, N0, N1> fixed_from(const T (&values)[N0][N1]) noexcept // NOLINT(*-avoid-c-arrays)
     {
         fixed<T, N0, N1> result{};
         for (std::size_t i = 0; i < N0; ++i)
@@ -338,7 +454,12 @@ namespace tl
         return result;
     }
 
-    // Builds a fixed of rank 2 to 4 from nested braces: tl::fixed_from({{1., 2.}, {3., 4.}}).
+    /**
+     * @brief A tl::fixed of rank 3 written with nested braces.
+     *
+     * @param values Nested braces whose shape gives the extents of the result.
+     * @return The tl::fixed holding `values`.
+     */
     template <scalar T, std::size_t N0, std::size_t N1, std::size_t N2>
     constexpr fixed<T, N0, N1, N2> fixed_from(const T (&values)[N0][N1][N2]) noexcept // NOLINT(*-avoid-c-arrays)
     {
@@ -350,6 +471,12 @@ namespace tl
         return result;
     }
 
+    /**
+     * @brief A tl::fixed of rank 4 written with nested braces.
+     *
+     * @param values Nested braces whose shape gives the extents of the result.
+     * @return The tl::fixed holding `values`.
+     */
     template <scalar T, std::size_t N0, std::size_t N1, std::size_t N2, std::size_t N3>
     constexpr fixed<T, N0, N1, N2, N3> fixed_from(const T (&values)[N0][N1][N2][N3]) noexcept // NOLINT(*-avoid-c-arrays)
     {
@@ -361,14 +488,29 @@ namespace tl
         return result;
     }
 
+    /**
+     * @brief Storage of a tl::fixed as an element type: its scalar, repeated over its shape.
+     *
+     * @tparam T Element type of the `fixed`.
+     * @tparam N Extents of the `fixed`.
+     */
     template <scalar T, std::size_t... N>
     struct element_traits<fixed<T, N...>>
     {
+        /// The element type of the `fixed`.
         using scalar = T;
+        /// The shape of the `fixed`.
         static constexpr std::array<std::size_t, sizeof...(N)> extents{N...};
     };
 
-    // Equality of whole values, between fixed and views of the same shape and element type.
+    /**
+     * @brief True when two values of the same shape and element type are equal everywhere.
+     *
+     * Compares a tl::fixed with a tl::fixed_view, or two views. Two tl::fixed compare with
+     * their own `operator==`.
+     *
+     * @param a, b `fixed` or views of the same shape and element type.
+     */
     template <class A, class B>
         requires detail::same_fixed<A, B>
     constexpr bool operator==(const A& a, const B& b) noexcept
@@ -383,10 +525,20 @@ namespace tl
         return true;
     }
 
-    // Element-wise comparisons, as in the Array API: a fixed of booleans of the same shape.
+    /**
+     * @brief `a == b` element by element, as in the Array API.
+     *
+     * @code
+     * tl::equal(tl::fixed<double, 3>{1., 2., 3.}, 2.)
+     * @endcode
+     *
+     * @param a, b Two `fixed` or views of the same shape and element type, or one of them and
+     *             a scalar, which is converted to the element type.
+     * @return A `tl::fixed<bool, N...>` of the same shape.
+     */
     template <class A, class B>
         requires detail::equality_operands<A, B>
-    constexpr detail::mask_of<A, B> equal(const A& a, const B& b) noexcept
+    constexpr auto equal(const A& a, const B& b) noexcept
     {
         return detail::elementwise<detail::mask_of<A, B>>(
             [](auto x, auto y)
@@ -397,9 +549,20 @@ namespace tl
             b);
     }
 
+    /**
+     * @brief `a != b` element by element, as in the Array API.
+     *
+     * @code
+     * tl::not_equal(tl::fixed<double, 3>{1., 2., 3.}, 2.)
+     * @endcode
+     *
+     * @param a, b Two `fixed` or views of the same shape and element type, or one of them and
+     *             a scalar, which is converted to the element type.
+     * @return A `tl::fixed<bool, N...>` of the same shape.
+     */
     template <class A, class B>
         requires detail::equality_operands<A, B>
-    constexpr detail::mask_of<A, B> not_equal(const A& a, const B& b) noexcept
+    constexpr auto not_equal(const A& a, const B& b) noexcept
     {
         return detail::elementwise<detail::mask_of<A, B>>(
             [](auto x, auto y)
@@ -410,9 +573,20 @@ namespace tl
             b);
     }
 
+    /**
+     * @brief `a < b` element by element, as in the Array API.
+     *
+     * @code
+     * tl::less(tl::fixed<double, 3>{1., 2., 3.}, 2.)
+     * @endcode
+     *
+     * @param a, b Two `fixed` or views of the same shape and element type, or one of them and
+     *             a scalar, which is converted to the element type. The element type is not `bool`.
+     * @return A `tl::fixed<bool, N...>` of the same shape.
+     */
     template <class A, class B>
         requires detail::ordered_operands<A, B>
-    constexpr detail::mask_of<A, B> less(const A& a, const B& b) noexcept
+    constexpr auto less(const A& a, const B& b) noexcept
     {
         return detail::elementwise<detail::mask_of<A, B>>(
             [](auto x, auto y)
@@ -423,9 +597,20 @@ namespace tl
             b);
     }
 
+    /**
+     * @brief `a <= b` element by element, as in the Array API.
+     *
+     * @code
+     * tl::less_equal(tl::fixed<double, 3>{1., 2., 3.}, 2.)
+     * @endcode
+     *
+     * @param a, b Two `fixed` or views of the same shape and element type, or one of them and
+     *             a scalar, which is converted to the element type. The element type is not `bool`.
+     * @return A `tl::fixed<bool, N...>` of the same shape.
+     */
     template <class A, class B>
         requires detail::ordered_operands<A, B>
-    constexpr detail::mask_of<A, B> less_equal(const A& a, const B& b) noexcept
+    constexpr auto less_equal(const A& a, const B& b) noexcept
     {
         return detail::elementwise<detail::mask_of<A, B>>(
             [](auto x, auto y)
@@ -436,9 +621,20 @@ namespace tl
             b);
     }
 
+    /**
+     * @brief `a > b` element by element, as in the Array API.
+     *
+     * @code
+     * tl::greater(tl::fixed<double, 3>{1., 2., 3.}, 2.)
+     * @endcode
+     *
+     * @param a, b Two `fixed` or views of the same shape and element type, or one of them and
+     *             a scalar, which is converted to the element type. The element type is not `bool`.
+     * @return A `tl::fixed<bool, N...>` of the same shape.
+     */
     template <class A, class B>
         requires detail::ordered_operands<A, B>
-    constexpr detail::mask_of<A, B> greater(const A& a, const B& b) noexcept
+    constexpr auto greater(const A& a, const B& b) noexcept
     {
         return detail::elementwise<detail::mask_of<A, B>>(
             [](auto x, auto y)
@@ -449,9 +645,20 @@ namespace tl
             b);
     }
 
+    /**
+     * @brief `a >= b` element by element, as in the Array API.
+     *
+     * @code
+     * tl::greater_equal(tl::fixed<double, 3>{1., 2., 3.}, 2.)
+     * @endcode
+     *
+     * @param a, b Two `fixed` or views of the same shape and element type, or one of them and
+     *             a scalar, which is converted to the element type. The element type is not `bool`.
+     * @return A `tl::fixed<bool, N...>` of the same shape.
+     */
     template <class A, class B>
         requires detail::ordered_operands<A, B>
-    constexpr detail::mask_of<A, B> greater_equal(const A& a, const B& b) noexcept
+    constexpr auto greater_equal(const A& a, const B& b) noexcept
     {
         return detail::elementwise<detail::mask_of<A, B>>(
             [](auto x, auto y)
@@ -462,8 +669,13 @@ namespace tl
             b);
     }
 
-    // Element-wise arithmetic between two fixed of the same shape and element type, or a
-    // fixed and a scalar, which is converted to the element type and broadcast.
+    /**
+     * @brief Element-wise sum `a + b`.
+     *
+     * @param a, b Two `fixed` or views of the same shape and a numeric element type, or one of
+     *             them and a scalar, which is converted to the element type and broadcast.
+     * @return A tl::fixed of the same shape and element type.
+     */
     template <class A, class B>
         requires detail::arithmetic_operands<A, B>
     constexpr auto operator+(const A& a, const B& b) noexcept
@@ -477,6 +689,13 @@ namespace tl
             b);
     }
 
+    /**
+     * @brief Element-wise difference `a - b`.
+     *
+     * @param a, b Two `fixed` or views of the same shape and a numeric element type, or one of
+     *             them and a scalar, which is converted to the element type and broadcast.
+     * @return A tl::fixed of the same shape and element type.
+     */
     template <class A, class B>
         requires detail::arithmetic_operands<A, B>
     constexpr auto operator-(const A& a, const B& b) noexcept
@@ -490,6 +709,13 @@ namespace tl
             b);
     }
 
+    /**
+     * @brief Element-wise product `a * b`.
+     *
+     * @param a, b Two `fixed` or views of the same shape and a numeric element type, or one of
+     *             them and a scalar, which is converted to the element type and broadcast.
+     * @return A tl::fixed of the same shape and element type.
+     */
     template <class A, class B>
         requires detail::arithmetic_operands<A, B>
     constexpr auto operator*(const A& a, const B& b) noexcept
@@ -503,6 +729,13 @@ namespace tl
             b);
     }
 
+    /**
+     * @brief Element-wise quotient `a / b`.
+     *
+     * @param a, b Two `fixed` or views of the same shape and a numeric element type, or one of
+     *             them and a scalar, which is converted to the element type and broadcast.
+     * @return A tl::fixed of the same shape and element type.
+     */
     template <class A, class B>
         requires detail::arithmetic_operands<A, B>
     constexpr auto operator/(const A& a, const B& b) noexcept
@@ -516,9 +749,15 @@ namespace tl
             b);
     }
 
+    /**
+     * @brief Element-wise negation.
+     *
+     * @param a `fixed` or view with a numeric element type.
+     * @return A tl::fixed of the same shape and element type.
+     */
     template <class A>
         requires detail::arithmetic_operands<A, A>
-    constexpr detail::value_of<A> operator-(const A& a) noexcept
+    constexpr auto operator-(const A& a) noexcept
     {
         return detail::elementwise<detail::value_of<A>>(
             [](auto x, auto)
@@ -529,7 +768,16 @@ namespace tl
             a);
     }
 
-    // Compound assignment writes into a fixed, or through a view.
+    /**
+     * @brief Adds `operand` to `target`, element by element, in place.
+     *
+     * Writes into a tl::fixed, or through a tl::fixed_view into the `fixed` it refers to.
+     *
+     * @param target `fixed` or view with a numeric element type.
+     * @param operand `fixed` or view of the same shape and element type, or a scalar, which
+     *                is converted to the element type and broadcast.
+     * @return `target`.
+     */
     template <class A, class B>
         requires detail::fixed_like<A> && detail::arithmetic_operands<A, B>
     constexpr A&& operator+=(A&& target, const B& operand) noexcept
@@ -544,6 +792,16 @@ namespace tl
         return std::forward<A>(target);
     }
 
+    /**
+     * @brief Subtracts `operand` from `target`, element by element, in place.
+     *
+     * Writes into a tl::fixed, or through a tl::fixed_view into the `fixed` it refers to.
+     *
+     * @param target `fixed` or view with a numeric element type.
+     * @param operand `fixed` or view of the same shape and element type, or a scalar, which
+     *                is converted to the element type and broadcast.
+     * @return `target`.
+     */
     template <class A, class B>
         requires detail::fixed_like<A> && detail::arithmetic_operands<A, B>
     constexpr A&& operator-=(A&& target, const B& operand) noexcept
@@ -558,6 +816,16 @@ namespace tl
         return std::forward<A>(target);
     }
 
+    /**
+     * @brief Multiplies `target` by `operand`, element by element, in place.
+     *
+     * Writes into a tl::fixed, or through a tl::fixed_view into the `fixed` it refers to.
+     *
+     * @param target `fixed` or view with a numeric element type.
+     * @param operand `fixed` or view of the same shape and element type, or a scalar, which
+     *                is converted to the element type and broadcast.
+     * @return `target`.
+     */
     template <class A, class B>
         requires detail::fixed_like<A> && detail::arithmetic_operands<A, B>
     constexpr A&& operator*=(A&& target, const B& operand) noexcept
@@ -572,6 +840,16 @@ namespace tl
         return std::forward<A>(target);
     }
 
+    /**
+     * @brief Divides `target` by `operand`, element by element, in place.
+     *
+     * Writes into a tl::fixed, or through a tl::fixed_view into the `fixed` it refers to.
+     *
+     * @param target `fixed` or view with a numeric element type.
+     * @param operand `fixed` or view of the same shape and element type, or a scalar, which
+     *                is converted to the element type and broadcast.
+     * @return `target`.
+     */
     template <class A, class B>
         requires detail::fixed_like<A> && detail::arithmetic_operands<A, B>
     constexpr A&& operator/=(A&& target, const B& operand) noexcept

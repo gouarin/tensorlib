@@ -39,6 +39,10 @@ Also in the branch:
 - Glossary: Fixed view and Element type.
 - Examples `examples/fixed.cpp` and `examples/element_traits.cpp`; tests `tests/core/fixed.cpp` and `tests/core/element.cpp`, almost all `static_assert`.
 
+- Documentation, at the user's request, written with the code from this ticket on: Doxygen comments on every public entity of `include/tl/`, and a Sphinx site in `docs/source/` (MyST Markdown, Breathe, furo, as in samurai) with pages for `fixed`, element types and the version. The tools are pinned in `docs/environment.yml`; `sphinx-build -W -n` runs Doxygen, which fails on any undocumented public entity or parameter. A CI job builds the site and uploads it as an artifact.
+- Readability of the interface after reading it in the docs: the comparisons and unary minus return `auto` (the docs give the type), and a view's scalar assignment is constrained by `std::is_arithmetic_v` instead of an internal concept.
+- MSVC rejected the fold expression that computed indices in constant evaluation (C2131); a plain loop replaces it.
+
 Checked: GCC 15 and Clang 21 with warnings as errors, ASan and UBSan, clang-tidy, the header checks, and the floors GCC 11.1 and Clang 16 in their containers.
 
 Not in this ticket: calling `fixed` from Kokkos or CUDA kernels. Its functions are `constexpr`, so `--expt-relaxed-constexpr` makes them callable on the device, but the bounds check under `TL_ENABLE_ASSERTIONS` calls a host function. [Kokkos interop kernels](28-kokkos-interop-kernels.md) settles device annotations.
