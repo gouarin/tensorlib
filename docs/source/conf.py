@@ -7,8 +7,11 @@ import warnings
 docs = pathlib.Path(__file__).resolve().parent.parent
 
 # The API pages come from the Doxygen XML of the public headers, regenerated at each build.
+# Doxygen creates only the last level of its output directory.
+output = docs.parent / "build" / "doxygen"
+output.mkdir(parents=True, exist_ok=True)
 subprocess.run(["doxygen", "Doxyfile"], cwd=docs, check=True)
-xml = docs.parent / "build" / "doxygen" / "xml"
+xml = output / "xml"
 
 # Doxygen writes `constexpr` as the return type of a constexpr constructor or destructor,
 # and also marks it constexpr="yes"; Breathe then prints `constexpr constexpr`, which the
