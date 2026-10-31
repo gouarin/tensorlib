@@ -87,3 +87,7 @@ Grilling log (2026-10-31):
 - Q6, benchmarks: option A plus B. Dedicated physical benchmark machine, nightly archive and alert on significant regressions above 5 %, same-job A/B on the `bench` label; instruction counts per PR for the front end.
 - Q7, tools: GoogleTest; header whitelist and facade rule checked by preprocessing; compile-time budget on instantiations and front-end time with `-ftime-trace`.
 - The user confirmed the recap, including the layout and the order in which pieces arrive.
+
+## Comments
+
+2026-10-31: the host floor rose to GCC 11.1, Clang 15 and Apple Clang 15 ([Minimum C++ standard and build system](14-cxx-standard-and-build.md), amendment on the floor). The CI floor jobs follow.

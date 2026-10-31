@@ -11,7 +11,7 @@ Builds on: [Build skeleton and repository layout](01-build-skeleton.md).
 
 ## What to build
 
-- GitHub Actions on every PR: GCC 10.4 and latest, Clang 14 and latest on Linux; Apple Clang on macOS; MSVC 19.30 and latest on Windows.
+- GitHub Actions on every PR: GCC 11.1 and latest, Clang 15 and latest on Linux; Apple Clang 15 and latest on macOS; MSVC 19.30 and latest on Windows.
 - A serial-only build (no LLVM, no Kokkos) on every compiler; the Kokkos build is added by later tickets.
 - ASan and UBSan jobs on the serial build.
 - CI scripts that preprocess `<tl/tl.hpp>` and each component header and fail on a standard header outside the whitelist, on a C++23 conditional path in public headers, and on a public operation whose body is not one line (the facade rule of ADR 0011).
@@ -19,5 +19,6 @@ Builds on: [Build skeleton and repository layout](01-build-skeleton.md).
 
 ## Acceptance
 
+- A test translation unit that includes `<source_location>` the way `tl::site` will compiles at every floor; the compile-only NVCC 12.2 and hipcc jobs of this ticket or of the GPU tickets report whether device compilers accept it in host code.
 - A PR that includes `<algorithm>` from a public header fails the header check with a message naming the header and the include chain.
 - All jobs are green on the skeleton.

@@ -40,3 +40,14 @@ Decided with the user on 2026-10-30, from [C++ standard support across target to
 ## Amendment (2026-10-31)
 
 [Coding style and extension points](29-coding-style-and-extension-points.md): public headers are strict C++20 with no C++23 conditional paths. C++23 enters the API all at once, replacing C++20 code, when the floor moves. The library's own `.cpp` files may raise their standard separately, without keeping two versions of the code.
+
+## Amendment (2026-10-31, floor)
+
+Decided with the user while implementing [Build skeleton and repository layout](../../core-implementation/issues/01-build-skeleton.md). `tl::site` captures `std::source_location` in public headers ([Error reporting and debug mode](24-error-reporting-and-debug-mode.md)), and `<source_location>` is missing from libstdc++ 10 (checked with GCC 10.5). The host floor rises above Kokkos 5's to:
+
+- GCC 11.1 (Kokkos warns on 11.0);
+- Clang 15, with libstdc++ 11 or newer or with libc++ 16 or newer, since libstdc++ defines `std::source_location` only when the compiler has `__builtin_source_location` (Clang 15) and libc++ ships the header from version 16 (libc++ 15 checked);
+- Apple Clang 15;
+- MSVC 19.30, unchanged.
+
+`<source_location>` joins the public header whitelist. A machine whose system libstdc++ is version 10 loads a newer GCC (`gcc-toolset`, modules) for nvcc and hipcc. Whether NVCC 12.2 accepts `std::source_location` in host code is checked by the compile-only CUDA job of [Hosted CI matrix and header checks](../../core-implementation/issues/02-ci-matrix-and-header-checks.md). Capturing with `__builtin_FILE()`, `__builtin_LINE()` and `__builtin_FUNCTION()` stays the fallback if a target toolchain cannot follow.
