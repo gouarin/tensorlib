@@ -1,6 +1,6 @@
 # Build skeleton and repository layout
 
-Status: ready-for-agent
+Status: resolved
 
 ## Context
 
@@ -26,3 +26,16 @@ Decisions: [Minimum C++ standard and build system](../../core-architecture/issue
 
 - CI workflows (next ticket).
 - Any tensor code.
+
+## Answer
+
+Done on branch `build-skeleton` (2026-10-31).
+
+- `CMakeLists.txt`, `cmake/` and `CMakePresets.json`: C++20, CMake 3.25.2 or newer, presets `{linux,macos,windows}-{debug,release,ci}` (debug turns on `TL_ENABLE_ASSERTIONS`, ci turns warnings into errors), options `TL_BUILD_TESTS`, `TL_FETCH_DEPS`, `TL_WARNINGS_AS_ERRORS`, `TL_ENABLE_ASSERTIONS`. Strict warnings are `PRIVATE` to tensorlib's targets (`tl_set_warnings`).
+- `find_package(tensorlib)` exports `tensorlib::core` (library `libtensorlib`, `SameMinorVersion` before 1.0). Windows DLLs export every symbol, since the library exports functions only.
+- The only code is the version: `<tl/version.hpp>`, configured by CMake, with `tl::version`, `tl::header_version` and `tl::library_version()` to detect headers and library from different installations. `<tl/tl.hpp>` is the umbrella header (IWYU export pragma).
+- Tests: GoogleTest through `tl_add_test(name SOURCES ... LABELS ...)` and `gtest_discover_tests`; `tests/install/` is a consumer project for the CI install check.
+- `.clang-format` is samurai's (Mozilla base, Allman braces, 4 spaces, 140 columns). `.clang-tidy` is the curated profile with naming rules and a cognitive-complexity threshold of 15.
+- `CONTRIBUTING.md` holds the build steps and the review checklist.
+
+Checked on the sandbox (Linux aarch64): GCC 15.2 and Clang 21.1 with warnings as errors, `ctest -L unit` passes; a consumer project builds and runs against the installed package, static and shared; `TL_FETCH_DEPS=ON` downloads GoogleTest 1.17 and passes; clang-format and clang-tidy 21 report nothing. macOS and Windows are left to the CI matrix of [Hosted CI matrix and header checks](02-ci-matrix-and-header-checks.md).

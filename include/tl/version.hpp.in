@@ -1,0 +1,23 @@
+#pragma once
+
+namespace tl
+{
+    // A release of tensorlib. Before 1.0, a new minor release may break the API.
+    struct version
+    {
+        int major;
+        int minor;
+        int patch;
+
+        friend constexpr bool operator==(const version&, const version&) = default;
+    };
+
+    // The version these headers belong to.
+    inline constexpr version header_version{.major = @PROJECT_VERSION_MAJOR@,
+                                            .minor = @PROJECT_VERSION_MINOR@,
+                                            .patch = @PROJECT_VERSION_PATCH@};
+
+    // The version of the compiled library the program is linked against. It differs from
+    // header_version when the headers and the library come from different installations.
+    version library_version() noexcept;
+}
