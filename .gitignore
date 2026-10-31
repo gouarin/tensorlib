@@ -4,3 +4,5 @@
 /build*/
 /out/
 .cache/
+# Python bytecode of the CI scripts
+__pycache__/
