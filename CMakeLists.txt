@@ -19,6 +19,7 @@ add_subdirectory(src/core)
 if(TL_BUILD_TESTS)
     enable_testing()
     add_subdirectory(tests)
+    add_subdirectory(examples)
 endif()
 
 include(CMakePackageConfigHelpers)

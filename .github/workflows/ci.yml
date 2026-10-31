@@ -1,0 +1,131 @@
+# Per-PR checks of the hosted CI matrix: compilers at the floor and at their latest
+# version on Linux, macOS and Windows, sanitizers, the install, and the lint checks
+# (formatting, clang-tidy, public header rules). GPU jobs run on self-hosted runners.
+name: CI
+
+on:
+  pull_request:
+  push:
+    branches: [main]
+
+concurrency:
+  group: ${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: true
+
+permissions:
+  contents: read
+
+env:
+  CTEST_OUTPUT_ON_FAILURE: "1"
+
+jobs:
+  linux:
+    name: Linux, ${{ matrix.name }}
+    runs-on: ${{ matrix.os }}
+    container: ${{ matrix.container }}
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - { name: "GCC 11.1 (floor)", os: ubuntu-24.04, container: "gcc:11.1", cxx: g++ }
+          - { name: "GCC latest", os: ubuntu-24.04, cxx: g++-14 }
+          - { name: "Clang 16 (floor)", os: ubuntu-24.04, cxx: clang++-16 }
+          - { name: "Clang latest", os: ubuntu-24.04, cxx: clang++-18 }
+    env:
+      CXX: ${{ matrix.cxx }}
+    steps:
+      - uses: actions/checkout@v4
+      - uses: lukka/get-cmake@latest
+      - run: cmake --preset linux-ci -DTL_FETCH_DEPS=ON
+      - run: cmake --build --preset linux-ci
+      - name: Unit tests and documentation examples
+        run: ctest --preset linux-ci -L "unit|example"
+
+  sanitizers:
+    name: Linux, ASan and UBSan
+    runs-on: ubuntu-24.04
+    env:
+      CXX: clang++-18
+    steps:
+      - uses: actions/checkout@v4
+      - uses: lukka/get-cmake@latest
+      - run: cmake --preset linux-sanitize -DTL_FETCH_DEPS=ON
+      - run: cmake --build --preset linux-sanitize
+      - run: ctest --preset linux-sanitize -L "unit|example"
+
+  macos:
+    name: macOS, ${{ matrix.name }}
+    runs-on: ${{ matrix.os }}
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - { name: "Apple Clang 16 (floor)", os: macos-15, xcode: "16.0" }
+          - { name: "Apple Clang latest", os: macos-15, xcode: "latest-stable" }
+    steps:
+      - uses: actions/checkout@v4
+      - uses: maxim-lobanov/setup-xcode@v1
+        with:
+          xcode-version: ${{ matrix.xcode }}
+      - uses: lukka/get-cmake@latest
+      - run: cmake --preset macos-ci -DTL_FETCH_DEPS=ON
+      - run: cmake --build --preset macos-ci
+      - run: ctest --preset macos-ci -L "unit|example"
+
+  windows:
+    name: Windows, MSVC latest
+    runs-on: windows-2022
+    steps:
+      - uses: actions/checkout@v4
+      - uses: ilammy/msvc-dev-cmd@v1
+      - uses: lukka/get-cmake@latest
+      - run: cmake --preset windows-ci -DTL_FETCH_DEPS=ON
+      - run: cmake --build --preset windows-ci
+      - run: ctest --preset windows-ci -L "unit|example"
+
+  install:
+    name: Install and use (shared=${{ matrix.shared }})
+    runs-on: ubuntu-24.04
+    strategy:
+      matrix:
+        shared: [OFF, ON]
+    steps:
+      - uses: actions/checkout@v4
+      - uses: lukka/get-cmake@latest
+      - name: Build and install tensorlib
+        run: |
+          cmake -S . -B build -G Ninja -DCMAKE_BUILD_TYPE=Release -DBUILD_SHARED_LIBS=${{ matrix.shared }} \
+                -DTL_BUILD_TESTS=OFF -DCMAKE_INSTALL_PREFIX="$RUNNER_TEMP/prefix"
+          cmake --build build
+          cmake --install build
+      - name: Build and run a consumer project
+        run: |
+          cmake -S tests/install -B consumer -G Ninja -DCMAKE_PREFIX_PATH="$RUNNER_TEMP/prefix"
+          cmake --build consumer
+          LD_LIBRARY_PATH="$RUNNER_TEMP/prefix/lib" ./consumer/consumer
+
+  lint:
+    name: Formatting, clang-tidy and header rules
+    runs-on: ubuntu-24.04
+    env:
+      CXX: clang++-21
+    steps:
+      - uses: actions/checkout@v4
+      - name: Install LLVM 21
+        run: |
+          wget -q https://apt.llvm.org/llvm.sh
+          sudo bash llvm.sh 21
+          sudo apt-get install -y clang-format-21 clang-tidy-21
+      - uses: lukka/get-cmake@latest
+      - name: clang-format
+        run: git ls-files '*.cpp' '*.hpp' | grep -v '^.scratch/' | xargs clang-format-21 --dry-run --Werror
+      - run: cmake --preset linux-ci -DTL_FETCH_DEPS=ON
+      - run: cmake --build --preset linux-ci
+      - name: Public headers include only the whitelist and have no version-conditional paths
+        run: |
+          python3 tools/ci/check_public_headers.py --compiler g++ include build/linux-ci/include
+          python3 tools/ci/check_public_headers.py --compiler clang++-21 include build/linux-ci/include
+      - name: Public operations are one-line facades
+        run: python3 tools/ci/check_facades.py --compiler clang++-21 include build/linux-ci/include
+      - name: clang-tidy
+        run: git ls-files '*.cpp' | grep -v -e '^.scratch/' -e '^tools/ci/tests/' -e '^tests/install/' | xargs clang-tidy-21 -p build/linux-ci --quiet --warnings-as-errors='*'

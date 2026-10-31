@@ -4,7 +4,7 @@ The design of the library is in [the architecture spec](.scratch/core-architectu
 
 ## Build and test
 
-You need CMake 3.25.2 or newer, Ninja and a C++20 compiler (GCC 11.1, Clang 15, Apple Clang 15 or MSVC 19.30 and newer). Tests use GoogleTest, found with `find_package`. If it is not installed, add `-DTL_FETCH_DEPS=ON` and CMake downloads it.
+You need CMake 3.25.2 or newer, Ninja and a C++20 compiler (GCC 11.1, Clang 16, Apple Clang 16 or MSVC 19.30 and newer). Tests use GoogleTest, found with `find_package`. If it is not installed, add `-DTL_FETCH_DEPS=ON` and CMake downloads it.
 
 ```bash
 cmake --preset linux-debug          # or macos-debug, windows-debug

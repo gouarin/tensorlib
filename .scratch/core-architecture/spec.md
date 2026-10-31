@@ -228,7 +228,7 @@ From [Binding surfaces for a lazy tensor library](issues/06-binding-surfaces.md)
 
 From [C++ standard support across target toolchains](issues/04-toolchain-support-matrix.md), [Techniques to cut compile times](issues/02-compile-time-techniques.md), [Minimum C++ standard and build system](issues/14-cxx-standard-and-build.md) and [Prototype of compile times for lighter templates](issues/11-compile-time-prototype.md).
 
-- C++20 everywhere. Device toolchains follow Kokkos 5 (NVCC 12.2, ROCm 6.2, IntelLLVM 2024.2.1). The host floor is GCC 11.1, Clang 15 (with libstdc++ 11 or libc++ 16 and newer), Apple Clang 15 and MSVC 19.30, above Kokkos 5, for `<source_location>`. No modules. Public headers are strict C++20; C++23 enters the API all at once when the floor moves.
+- C++20 everywhere. Device toolchains follow Kokkos 5 (NVCC 12.2, ROCm 6.2, IntelLLVM 2024.2.1). The host floor is GCC 11.1, Clang 16 (with libstdc++ 11 or libc++ 16 and newer), Apple Clang 16 and MSVC 19.30, above Kokkos 5, for `<source_location>`. No modules. Public headers are strict C++20; C++23 enters the API all at once when the floor moves.
 - Public headers include only `<cstddef>`, `<cstdint>`, `<type_traits>`, `<concepts>`, `<utility>`, `<initializer_list>`, `<span>`, `<array>`, `<compare>`, `<limits>`, `<source_location>` for `tl::site`, and `<cmath>` for `fixed`. No expression templates for run-time-sized tensors.
 - CMake 3.25.2 or newer with presets. `find_package(tensorlib)` exports `tensorlib::core`, `tensorlib::kokkos`, `tensorlib::petsc`, `tensorlib::tpetra` and `tensorlib::c`. Dependencies through `find_package`, `FetchContent` opt-in with `TL_FETCH_DEPS=ON`, nothing vendored.
 - Packages: Spack (`+cuda`, `+rocm`, `+sycl`, `+mpi`, `+umpire`, `+petsc`, `+trilinos`) and conda-forge (CPU and CUDA), with one shared Kokkos installation.
@@ -289,7 +289,7 @@ Some tickets were amended by later ones. Where the text of a ticket still says o
 8. **Reproducibility across ranks.** [Code-generation strategy](issues/12-code-generation-strategy.md) promised reproducibility at a fixed rank count. By default it is "in practice". It is guaranteed under `TL_FP=strict` ([Communication in the evaluation plan](issues/28-communication-in-the-evaluation-plan.md)).
 9. **Segment offsets.** [Views and slicing](issues/23-views-and-slicing.md) gives one offset table per operand. [Lowering of short segments](issues/30-lowering-of-short-segments.md) shares one base column among operands with the same table and bridges only then.
 
-10. **Host floor.** [Minimum C++ standard and build system](issues/14-cxx-standard-and-build.md) and [Test and benchmark infrastructure](issues/32-test-and-benchmark-infrastructure.md) name GCC 10.4 and Clang 14, Kokkos 5's floor. The amendment on the floor raises the host floor to GCC 11.1, Clang 15 and Apple Clang 15, so that `<source_location>` is available to `tl::site`.
+10. **Host floor.** [Minimum C++ standard and build system](issues/14-cxx-standard-and-build.md) and [Test and benchmark infrastructure](issues/32-test-and-benchmark-infrastructure.md) name GCC 10.4 and Clang 14, Kokkos 5's floor. The amendment on the floor raises the host floor to GCC 11.1, Clang 16 and Apple Clang 16, so that `<source_location>` is available to `tl::site`.
 
 ## Open items
 
