@@ -1,0 +1,30 @@
+host cpu: generic, threads: 1
+ponio20 jit vs hand          max|diff| = 0, bit-equal 1048613 / 1048613
+ponio20 jit, no FMA vs FMA   max|diff| = 2.22e-16, bit-equal 824274 / 1048613
+two-body jit vs hand         max|diff| = 0, bit-equal 1106922 / 1106922
+two launches vs two-body     max|diff| = 0, bit-equal 1106922 / 1106922
+flux gather vs atomic scatter max|diff| = 0, bit-equal 1048613 / 1048613
+canonical sum -22.130891379349841 (bits c036218218f1a2ca), max 0.99999929821180977
+kokkos    sum -22.130891379339889 (bits c036218218f197d9)
+long double sum -22.130891379348864: canonical err -9.76e-13, kokkos err 8.97e-12
+REPRO canonical=c036218218f1a2ca kokkos=c036218218f197d9
+host cpu: generic, threads: 4
+ponio20 jit vs hand          max|diff| = 0, bit-equal 1048613 / 1048613
+ponio20 jit, no FMA vs FMA   max|diff| = 2.22e-16, bit-equal 824274 / 1048613
+two-body jit vs hand         max|diff| = 0, bit-equal 1106922 / 1106922
+two launches vs two-body     max|diff| = 0, bit-equal 1106922 / 1106922
+flux gather vs atomic scatter max|diff| = 1.11e-16, bit-equal 1048612 / 1048613
+canonical sum -22.130891379349841 (bits c036218218f1a2ca), max 0.99999929821180977
+kokkos    sum -22.130891379354292 (bits c036218218f1a7af)
+long double sum -22.130891379348864: canonical err -9.76e-13, kokkos err -5.43e-12
+REPRO canonical=c036218218f1a2ca kokkos=c036218218f1a7af
+host cpu: generic, threads: 16
+ponio20 jit vs hand          max|diff| = 0, bit-equal 1048613 / 1048613
+ponio20 jit, no FMA vs FMA   max|diff| = 2.22e-16, bit-equal 824274 / 1048613
+two-body jit vs hand         max|diff| = 0, bit-equal 1106922 / 1106922
+two launches vs two-body     max|diff| = 0, bit-equal 1106922 / 1106922
+flux gather vs atomic scatter max|diff| = 1.11e-16, bit-equal 1048612 / 1048613
+canonical sum -22.130891379349841 (bits c036218218f1a2ca), max 0.99999929821180977
+kokkos    sum -22.130891379356171 (bits c036218218f1a9c0)
+long double sum -22.130891379348864: canonical err -9.76e-13, kokkos err -7.31e-12
+REPRO canonical=c036218218f1a2ca kokkos=c036218218f1a9c0

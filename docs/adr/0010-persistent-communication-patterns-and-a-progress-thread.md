@@ -1,0 +1,13 @@
+# Communication as persistent patterns, driven by a progress thread
+
+The evaluation plan reaches other ranks through a small `tl::communicator` interface. The plan never calls point-to-point operations or collectives one by one. When the plan is built, it creates persistent communication patterns: a halo pattern (fixed neighbours and sizes), a reduce pattern (a packed byte buffer and a tensorlib-defined operation) and an exchange pattern (alltoallv, gatherv and allgatherv counts). It caches them with the plan, and every evaluation starts and completes them. The MPI implementation maps them onto MPI 4 persistent and neighbourhood collectives, and falls back to non-persistent calls when those are missing. One progress thread per rank drives them: it waits for pack kernels, starts the patterns, tests the requests and signals completion to the device queues.
+
+We rejected an interface that mirrors MPI call by call. It would redo the setup on every evaluation, and it would carry MPI's concepts into the core, which suits NCCL and Kokkos Comm poorly. We rejected a minimal point-to-point interface with collectives rebuilt on top, because it gives up the tuned and hardware-offloaded collectives of MPI and rewrites algorithms that already exist. For progress, we rejected having the trigger thread drive the plan to the end. It would turn every distributed evaluation into a blocking call and break the asynchronous evaluation of [ADR 0002](0002-implicit-pending-windows.md) on GPU machines, where it matters most. Stream-triggered communication (MPIX streams, NCCL and RCCL on streams) is not portable in 2026, so it can only be a later backend capability.
+
+## Consequences
+
+- Communication setup is paid once per plan, like kernel compilation. Cached patterns hold MPI resources, and `tl::finalize` releases them before `MPI_Finalize`.
+- The progress thread needs `MPI_THREAD_MULTIPLE` when the application also calls MPI. `TL_COMM_PROGRESS=caller` makes the trigger thread drive the plan instead, for MPI libraries without it and for debugging.
+- Device queues wait for a completed receive through host-signalled events when the backend declares them (`cuStreamWaitValue32` and its HIP equivalent). Otherwise the progress thread launches the dependent kernels itself.
+- A `self` communicator without MPI runs single-rank and serial builds: a neighbour that is the rank itself becomes a local copy kernel, and a reduction returns its input.
+- Message formats belong to tensorlib: generated pack and unpack kernels fill contiguous buffers that start with a header carrying the poison flag of [ADR 0007](0007-errors-poison-results-across-ranks.md) and a hash of the plan's communication.

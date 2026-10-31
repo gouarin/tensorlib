@@ -1,0 +1,42 @@
+host cpu: generic, median of 9 cold compiles, each in a fresh LLVMContext
+
+== reference kernels
+ponio20            83 ops   build   0.050   O3    2.062   codegen+link    4.847   total    7.017 ms
+stencil-seg        10 ops   build   0.026   O3    1.147   codegen+link    3.068   total    4.329 ms
+two-body           13 ops   build   0.032   O3    1.495   codegen+link    3.688   total    5.265 ms
+flux-gather         5 ops   build   0.020   O3    0.743   codegen+link    2.441   total    3.218 ms
+canon-sum           -        total    3.947 ms
+
+== growth with kernel size (chain of x = x*s + b)
+chain4             14 ops   build   0.024   O3    0.835   codegen+link    2.647   total    3.707 ms
+chain16            50 ops   build   0.024   O3    0.844   codegen+link    2.542   total    3.503 ms
+chain64           194 ops   build   0.040   O3    1.433   codegen+link    3.395   total    4.888 ms
+chain256          770 ops   build   0.109   O3    3.737   codegen+link    8.872   total   12.679 ms
+chain1024        3074 ops   build   0.371   O3   20.455   codegen+link   71.651   total   92.750 ms
+chain4096       12290 ops   build   1.383   O3  190.135   codegen+link 1175.793   total 1367.365 ms
+
+== growth with live values (L inputs live across 4 outputs)
+live4              48 ops   build   0.030   O3    1.270   codegen+link    3.119   total    4.596 ms
+live8             100 ops   build   0.043   O3    1.774   codegen+link    4.523   total    6.347 ms
+live16            204 ops   build   0.061   O3    3.214   codegen+link    8.398   total   11.803 ms
+live24            308 ops   build   0.089   O3    5.090   codegen+link   13.612   total   18.598 ms
+live32            412 ops   build   0.113   O3    5.613   codegen+link   10.286   total   16.013 ms
+live48            620 ops   build   0.142   O3    9.165   codegen+link   18.561   total   27.974 ms
+live64            828 ops   build   0.184   O3   15.121   codegen+link   25.038   total   40.604 ms
+
+== object cache: emit once, then reload (file read + ORC link + lookup)
+ponio20: build+O3+emit object 6.546 ms, reload from disk 0.053 ms, object size 1384 bytes
+
+== optimised assembly
+ponio20 noalias            vector fmla  20  vector fmul   1  vector fadd/fsub   0  q-reg loads  21  sp loads/stores  32
+ponio20 no noalias         vector fmla  20  vector fmul   1  vector fadd/fsub   0  q-reg loads  21  sp loads/stores  32
+ponio20 no FMA             vector fmla   0  vector fmul  21  vector fadd/fsub  20  q-reg loads  21  sp loads/stores  32
+stencil-seg                vector fmla   4  vector fmul   0  vector fadd/fsub   2  q-reg loads   1  sp loads/stores   0
+flux-gather                vector fmla   0  vector fmul   0  vector fadd/fsub   4  q-reg loads   2  sp loads/stores   0
+live4                      vector fmla  12  vector fmul   4  vector fadd/fsub   0  q-reg loads   4  sp loads/stores   4
+live8                      vector fmla  28  vector fmul   4  vector fadd/fsub   0  q-reg loads  19  sp loads/stores  34
+live16                     vector fmla  60  vector fmul   4  vector fadd/fsub   0  q-reg loads  92  sp loads/stores 147
+live24                     vector fmla  92  vector fmul   4  vector fadd/fsub   0  q-reg loads 166  sp loads/stores 266
+live32                     vector fmla   0  vector fmul   0  vector fadd/fsub   0  q-reg loads   0  sp loads/stores 229
+live48                     vector fmla   0  vector fmul   0  vector fadd/fsub   0  q-reg loads   0  sp loads/stores 426
+live64                     vector fmla   0  vector fmul   0  vector fadd/fsub   0  q-reg loads   0  sp loads/stores 615

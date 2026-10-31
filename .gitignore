@@ -1,0 +1,6 @@
+# Worktrees of feature branches
+/worktree/
+# Build directories
+/build*/
+/out/
+.cache/

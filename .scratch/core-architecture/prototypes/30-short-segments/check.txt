@@ -1,0 +1,38 @@
+data/advection_2d_level13.txt
+  67815 segments, 782374 cells, mean length 11.5; 32677 segments (7.1 % of cells) shorter than 4
+  bridged (gap <= 4): 16182 segments, mean length 55.3, 14.5 % extra cells computed
+  pad to 4 runs into the next segment after 8969 of 67815 segments
+  aos_scalar               same bits  computed 782374 cells, 265 chunks
+  soa_scalar               same bits  computed 782374 cells, 265 chunks
+  soa_overlap4             same bits  computed 782374 cells, 265 chunks
+  soa_overlap8             same bits  computed 782374 cells, 265 chunks
+  soa_masked4              same bits  computed 782374 cells, 265 chunks
+  soa_pad4                 same bits  computed 782374 cells, 265 chunks
+  soa_pad2                 same bits  computed 782374 cells, 265 chunks
+  sorted_overlap4          same bits  computed 782374 cells, 265 chunks
+  bridged_scalar           same bits  computed 895625 cells, 64 chunks
+  bridged_overlap4         same bits  computed 895625 cells, 64 chunks
+  bridged_pad4             same bits  computed 895625 cells, 64 chunks
+  overlap4_oneseg          same bits  computed 782374 cells, 67815 chunks
+  overlap4_cells           same bits  computed 782374 cells, 96 chunks
+  bridged_overlap4_cells   same bits  computed 895625 cells, 108 chunks
+  cell_list                same bits  computed 782374 cells, 96 chunks
+data/rayleigh_taylor_level9.txt
+  5663 segments, 121336 cells, mean length 21.4; 2210 segments (3.1 % of cells) shorter than 4
+  bridged (gap <= 4): 1833 segments, mean length 72.0, 8.7 % extra cells computed
+  pad to 4 runs into the next segment after 541 of 5663 segments
+  aos_scalar               same bits  computed 121336 cells, 23 chunks
+  soa_scalar               same bits  computed 121336 cells, 23 chunks
+  soa_overlap4             same bits  computed 121336 cells, 23 chunks
+  soa_overlap8             same bits  computed 121336 cells, 23 chunks
+  soa_masked4              same bits  computed 121336 cells, 23 chunks
+  soa_pad4                 same bits  computed 121336 cells, 23 chunks
+  soa_pad2                 same bits  computed 121336 cells, 23 chunks
+  sorted_overlap4          same bits  computed 121336 cells, 23 chunks
+  bridged_scalar           same bits  computed 131902 cells, 8 chunks
+  bridged_overlap4         same bits  computed 131902 cells, 8 chunks
+  bridged_pad4             same bits  computed 131902 cells, 8 chunks
+  overlap4_oneseg          same bits  computed 121336 cells, 5663 chunks
+  overlap4_cells           same bits  computed 121336 cells, 16 chunks
+  bridged_overlap4_cells   same bits  computed 131902 cells, 15 chunks
+  cell_list                same bits  computed 121336 cells, 17 chunks

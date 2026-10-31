@@ -1,0 +1,11 @@
+# K=16 generated expressions, Google Benchmark, 5 (16 threads) or 3 (1 thread) interleaved repetitions, median.
+# 18-vCPU aarch64 VM, GCC 15.2 -O3. tl = block interpreter (no JIT). xtensor's strided (broadcasting)
+# assignment is not parallel unless strided_parallel_assign is defined, so xtensor ran on one thread.
+#
+# variant      n=256 16thr   n=2048 16thr   n=256 1thr   n=2048 1thr   (ms)
+tl               1.43          81.0           13.8          879
+et               6.18          341            58.9          3744
+xt_eval          16.8          1020           15.9          1050
+xt_lazy          67.7          4318           67.0          -
+#
+# check: all variants agree with xt_lazy to 4.4e-16 (n=64 and n=300).
