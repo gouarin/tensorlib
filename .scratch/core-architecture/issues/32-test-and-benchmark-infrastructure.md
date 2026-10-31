@@ -90,4 +90,4 @@ Grilling log (2026-10-31):
 
 ## Comments
 
-2026-10-31: the host floor rose to GCC 11.1, Clang 16 and Apple Clang 15 ([Minimum C++ standard and build system](14-cxx-standard-and-build.md), amendment on the floor). The CI floor jobs follow.
+2026-10-31: the host floor rose to GCC 11.1, Clang 16 and Apple Clang 16 ([Minimum C++ standard and build system](14-cxx-standard-and-build.md), amendment on the floor). The CI floor jobs follow.

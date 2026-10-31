@@ -47,7 +47,7 @@ Decided with the user while implementing [Build skeleton and repository layout](
 
 - GCC 11.1 (Kokkos warns on 11.0);
 - Clang 16, with libstdc++ 11 or newer or with libc++ 16 or newer. libstdc++ defines `std::source_location` only when the compiler has `__builtin_source_location` (Clang 15), libc++ ships the header from version 16 (libc++ 15 checked), and Clang 15 evaluates `std::source_location::current()` used as a default argument at the callee: the CI test of [Hosted CI matrix and header checks](../../core-implementation/issues/02-ci-matrix-and-header-checks.md) got the line of the default argument instead of the caller's on Clang 15.0.7, and the right line on Clang 16.0.6;
-- Apple Clang 15;
+- Apple Clang 16 (Xcode 16), since Apple Clang 15 (Xcode 15.4) has the same defaulted `std::source_location` bug as Clang 15 (found by the CI of [Hosted CI matrix and header checks](../../core-implementation/issues/02-ci-matrix-and-header-checks.md));
 - MSVC 19.30, unchanged.
 
 `<source_location>` joins the public header whitelist. A machine whose system libstdc++ is version 10 loads a newer GCC (`gcc-toolset`, modules) for nvcc and hipcc. NVCC 12.2.140 with GCC 11.4 as host compiler compiles `<tl/tl.hpp>` next to a kernel and captures the caller's line with a defaulted `std::source_location` (checked in the `nvidia/cuda:12.2.2-devel-ubuntu22.04` image while implementing [Hosted CI matrix and header checks](../../core-implementation/issues/02-ci-matrix-and-header-checks.md)). hipcc is not checked yet. Capturing with `__builtin_FILE()`, `__builtin_LINE()` and `__builtin_FUNCTION()` stays the fallback if a target toolchain cannot follow.

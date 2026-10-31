@@ -1,5 +1,5 @@
 // Checks that the toolchain provides what the public headers rely on at the floor
-// (GCC 11.1, Clang 16, Apple Clang 15, MSVC 19.30). Clang 15 fails the line check below:
+// (GCC 11.1, Clang 16, Apple Clang 16, MSVC 19.30). Clang 15 and Apple Clang 15 fail the line check below:
 // it evaluates a defaulted std::source_location::current() at the callee.
 #include <source_location>
 #include <string_view>

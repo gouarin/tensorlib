@@ -11,7 +11,7 @@ Builds on: [Build skeleton and repository layout](01-build-skeleton.md).
 
 ## What to build
 
-- GitHub Actions on every PR: GCC 11.1 and latest, Clang 16 and latest on Linux; Apple Clang 15 and latest on macOS; MSVC 19.30 and latest on Windows.
+- GitHub Actions on every PR: GCC 11.1 and latest, Clang 16 and latest on Linux; Apple Clang 16 and latest on macOS; MSVC 19.30 and latest on Windows.
 - A serial-only build (no LLVM, no Kokkos) on every compiler; the Kokkos build is added by later tickets.
 - ASan and UBSan jobs on the serial build.
 - CI scripts that preprocess `<tl/tl.hpp>` and each component header and fail on a standard header outside the whitelist, on a C++23 conditional path in public headers, and on a public operation whose body is not one line (the facade rule of ADR 0011).
@@ -29,7 +29,7 @@ Done on branch `ci-matrix` (2026-10-31).
 
 - `.github/workflows/ci.yml`, on every PR and on `main`:
   - Linux: GCC 11.1 (floor, `gcc:11.1` container), GCC 14, Clang 16 (floor) and Clang 18;
-  - macOS: Apple Clang 15 (Xcode 15.4 on `macos-14`) and the latest stable Xcode on `macos-15`;
+  - macOS: Apple Clang 16 (Xcode 16.0 on `macos-15`) and the latest stable Xcode;
   - Windows: MSVC of the `windows-2022` image (latest);
   - ASan and UBSan (`linux-sanitize` preset, Clang 18);
   - install of a static and a shared build, then a consumer project built and run against it (`tests/install/`);
@@ -47,6 +47,7 @@ Replayed locally: the GCC 11.1 job in the `gcc:11.1` container and the Clang 16 
 Findings:
 
 - Clang 15 captures the wrong site: a defaulted `std::source_location::current()` gives the line of the default argument, not the caller's (Clang 15.0.7; Clang 16.0.6 is right). The host floor becomes Clang 16 (amendment on the floor in [Minimum C++ standard and build system](../../core-architecture/issues/14-cxx-standard-and-build.md)). Clang 15's JSON AST also lacks the node the facade check relies on.
+- Apple Clang 15 (Xcode 15.4) has the same bug on the first CI run (line 12 instead of 20), so the Apple Clang floor becomes 16 (Xcode 16); Apple Clang 17 passes.
 - NVCC 12.2 accepts `std::source_location` in host code and captures the right line.
 - The MSVC 19.30 floor is not installed on the hosted `windows-2022` image, so only the latest MSVC runs. A floor job needs a self-hosted runner or a toolset that the image does not ship.
 - hipcc and the SYCL compiler are not checked yet; their compile-only jobs come with the Kokkos and GPU tickets.
