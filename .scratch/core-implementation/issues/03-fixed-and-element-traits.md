@@ -41,7 +41,10 @@ Also in the branch:
 
 - Documentation, at the user's request, written with the code from this ticket on: Doxygen comments on every public entity of `include/tl/`, and a Sphinx site in `docs/source/` (MyST Markdown, Breathe, furo, as in samurai) with pages for `fixed`, element types and the version. The tools are pinned in `docs/environment.yml`; `sphinx-build -W -n` runs Doxygen, which fails on any undocumented public entity or parameter. A CI job builds the site and uploads it as an artifact.
 - Readability of the interface after reading it in the docs: the comparisons and unary minus return `auto` (the docs give the type), and a view's scalar assignment is constrained by `std::is_arithmetic_v` instead of an internal concept.
-- MSVC rejected the fold expression that computed indices in constant evaluation (C2131); a plain loop replaces it.
+- Two MSVC bugs, reproduced on Compiler Explorer:
+  - MSVC before 19.50 (19.44 is the one on the hosted `windows-2022` runners) cannot read a nested-brace temporary bound to an array reference in constant evaluation (C2131, "out of range index"), whatever the form of the parameter. `tl::fixed_from` works there at run time; its documentation says so, and the `constexpr` tests of `fixed_from` are skipped on those versions while a run-time test covers every compiler.
+  - MSVC 19.51 rejects the computed template argument `std::array{N...}[K + I]...` that built the type of a view; a partial specialisation that drops the first K extents replaces it, on every compiler.
+- The index computation is a loop over an array of indices instead of a fold expression, which reads better.
 
 Checked: GCC 15 and Clang 21 with warnings as errors, ASan and UBSan, clang-tidy, the header checks, and the floors GCC 11.1 and Clang 16 in their containers.
 

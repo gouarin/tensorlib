@@ -22,6 +22,9 @@ namespace
 
     constexpr mat2 m{1., 2., 3., 4.};
     static_assert(m(0, 1) == 2. && m(1, 0) == 3.); // C order
+// MSVC before 19.50 cannot read nested braces bound to an array reference in constant
+// evaluation (C2131); fixed_from works there at run time, tested below.
+#if !defined(_MSC_VER) || _MSC_VER >= 1950
     static_assert(tl::fixed_from({
                       {1., 2.},
                       {3., 4.}
@@ -32,6 +35,7 @@ namespace
                       {{5, 6}, {7, 8}}
     })
                   == tl::fixed<int, 2, 2, 2>{1, 2, 3, 4, 5, 6, 7, 8});
+#endif
 
     // Arithmetic
 
@@ -145,6 +149,20 @@ TEST(fixed, writes_through_views_at_run_time)
         r(i) = static_cast<double>(i + 1);
     }
     EXPECT_EQ(r, (mat2{1., 1., 2., 2.}));
+}
+
+TEST(fixed, builds_from_nested_braces_at_run_time)
+{
+    EXPECT_EQ(tl::fixed_from({
+                  {1., 2.},
+                  {3., 4.}
+    }),
+              m);
+    EXPECT_EQ(tl::fixed_from({
+                  {{1, 2}, {3, 4}},
+                  {{5, 6}, {7, 8}}
+    }),
+              (tl::fixed<int, 2, 2, 2>{1, 2, 3, 4, 5, 6, 7, 8}));
 }
 
 TEST(fixed, checks_indices_with_assertions)

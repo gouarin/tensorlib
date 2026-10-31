@@ -59,12 +59,23 @@ namespace tl
         template <class T>
         concept arithmetic_element = scalar<std::remove_const_t<T>> && !std::same_as<std::remove_const_t<T>, bool>;
 
-        template <std::size_t K, class T, std::size_t... N, std::size_t... I>
-        auto subview_type(std::index_sequence<I...>) -> fixed_view<T, std::array<std::size_t, sizeof...(N)>{N...}[K + I]...>;
-
-        // The view left after fixing the first K indices of a block of shape N...
+        // The view left after fixing the first K indices of a block of shape N...: drops the
+        // first K extents, one at a time.
         template <std::size_t K, class T, std::size_t... N>
-        using subview = decltype(subview_type<K, T, N...>(std::make_index_sequence<sizeof...(N) - K>{}));
+        struct drop_extents
+        {
+            using type = fixed_view<T, N...>;
+        };
+
+        template <std::size_t K, class T, std::size_t First, std::size_t... Rest>
+            requires(K > 0)
+        struct drop_extents<K, T, First, Rest...>
+        {
+            using type = typename drop_extents<K - 1, T, Rest...>::type;
+        };
+
+        template <std::size_t K, class T, std::size_t... N>
+        using subview = typename drop_extents<K, T, N...>::type;
 
         // Element or block at the leading indices `index...` of C-order storage of shape N...
         template <std::size_t... N, class T, std::convertible_to<std::size_t>... I>
@@ -435,6 +446,10 @@ namespace tl
      * @endcode
      *
      * The flat form `tl::fixed<double, 2, 2>{1., 2., 3., 4.}` gives the same value.
+     *
+     * @note MSVC before 19.50 cannot evaluate `fixed_from` in a constant expression
+     * (error C2131 on nested braces bound to an array reference); it works at run time. Use
+     * the flat form for `constexpr` values with those compilers.
      *
      * @param values Nested braces whose shape gives the extents of the result.
      * @return The tl::fixed holding `values`.
