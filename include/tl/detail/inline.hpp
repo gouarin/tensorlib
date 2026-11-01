@@ -9,8 +9,7 @@
 // Forcing inlining makes them as fast as the loop at every size measured.
 //
 // The attribute has no portable spelling: MSVC rejects [[gnu::always_inline]] (C5030) and
-// GCC rejects [[msvc::forceinline]], so this is a macro. It is internal, not part of the
-// API.
+// GCC rejects [[msvc::forceinline]], so this is a macro.
 #if defined(_MSC_VER) && !defined(__clang__)
 #define TL_ALWAYS_INLINE __forceinline
 #else
