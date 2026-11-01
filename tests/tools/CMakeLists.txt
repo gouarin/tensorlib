@@ -22,18 +22,21 @@ set_tests_properties(check_headers.rejects_version_conditional PROPERTIES
 set_tests_properties(check_headers.public_headers check_headers.rejects_banned_header check_headers.rejects_version_conditional
     PROPERTIES LABELS unit)
 
-add_test(NAME check_benchmarks.rejects_slow_candidate
-    COMMAND Python3::Interpreter "${tools}/check_benchmarks.py" ratios bench_demo --compiler GNU
-            --limits "${fixtures}/benchmarks/limits.toml" --results "${fixtures}/benchmarks/bench_demo.json")
-set_tests_properties(check_benchmarks.rejects_slow_candidate PROPERTIES
-    PASS_REGULAR_EXPRESSION "error: expression<small>: fixed is more than 1.15 times slower than loop"
-    FAIL_REGULAR_EXPRESSION "error: compound<big>")
-add_test(NAME check_benchmarks.rejects_extra_call
-    COMMAND Python3::Interpreter "${tools}/check_benchmarks.py" codegen bench_demo --compiler GNU
-            --limits "${fixtures}/benchmarks/limits.toml" --disassembly "${fixtures}/benchmarks/bench_demo.s")
-set_tests_properties(check_benchmarks.rejects_extra_call PROPERTIES
-    PASS_REGULAR_EXPRESSION "kernel::expression_fixed<tl::fixed<double, 32ul> > calls tl::fixed<double, 32ul> tl::detail::elementwise")
-set_tests_properties(check_benchmarks.rejects_slow_candidate check_benchmarks.rejects_extra_call PROPERTIES LABELS unit)
+# tools/ci/check_benchmarks.py reads TOML with tomllib, new in Python 3.11.
+if(Python3_VERSION VERSION_GREATER_EQUAL 3.11)
+    add_test(NAME check_benchmarks.rejects_slow_candidate
+        COMMAND Python3::Interpreter "${tools}/check_benchmarks.py" ratios bench_demo --compiler GNU
+                --limits "${fixtures}/benchmarks/limits.toml" --results "${fixtures}/benchmarks/bench_demo.json")
+    set_tests_properties(check_benchmarks.rejects_slow_candidate PROPERTIES
+        PASS_REGULAR_EXPRESSION "error: expression<small>: fixed is more than 1.15 times slower than loop"
+        FAIL_REGULAR_EXPRESSION "error: compound<big>")
+    add_test(NAME check_benchmarks.rejects_extra_call
+        COMMAND Python3::Interpreter "${tools}/check_benchmarks.py" codegen bench_demo --compiler GNU
+                --limits "${fixtures}/benchmarks/limits.toml" --disassembly "${fixtures}/benchmarks/bench_demo.s")
+    set_tests_properties(check_benchmarks.rejects_extra_call PROPERTIES
+        PASS_REGULAR_EXPRESSION "kernel::expression_fixed<tl::fixed<double, 32ul> > calls tl::fixed<double, 32ul> tl::detail::elementwise")
+    set_tests_properties(check_benchmarks.rejects_slow_candidate check_benchmarks.rejects_extra_call PROPERTIES LABELS unit)
+endif()
 
 # The facade check reads Clang's AST and needs Clang 16 or newer.
 find_program(TL_CLANGXX NAMES clang++-21 clang++-20 clang++-19 clang++-18 clang++)

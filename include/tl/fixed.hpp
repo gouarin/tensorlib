@@ -223,11 +223,23 @@ namespace tl
             }
         }
 
-        // Values up to this size are processed in straight-line code, one statement per
-        // element, so that the compiler keeps a value and its temporaries in registers:
-        // 256 bytes are 16 vector registers of 16 bytes, half of what an x86-64 or Arm core
-        // has. Larger values use a loop, whose compile time does not grow with the size.
-        inline constexpr std::size_t unrolled_bytes = 256;
+        // Bytes held by the vector registers of the target: their number times their width.
+        inline constexpr std::size_t vector_register_bytes =
+#ifdef __AVX512F__
+            std::size_t{32} * 64;
+#elif defined(__AVX__)
+            std::size_t{16} * 32;
+#elif defined(__aarch64__) || defined(_M_ARM64)
+            std::size_t{32} * 16;
+#else
+            std::size_t{16} * 16; // SSE2, the x86-64 baseline, and other targets
+#endif
+
+        // Values that fit in half the vector registers are processed in straight-line code,
+        // one statement per element, so that the compiler keeps a value and its temporaries
+        // in registers. Larger values use a loop, whose compile time does not grow with the
+        // size: unrolled, they spill (clang on x86-64 SSE2 at 256 bytes) and run slower.
+        inline constexpr std::size_t unrolled_bytes = vector_register_bytes / 2;
 
         template <class Indices>
         struct unrolled;
