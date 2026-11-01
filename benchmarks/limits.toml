@@ -39,3 +39,12 @@ arch = "aarch64"
 case = "compound<vec3>"
 max_ratio = 2.1
 reason = "after a temporary, the LLVM vectoriser picks ld3/st3; plain C does the same (1.76 measured)"
+
+# GCC unrolls the 36 elements of a 6x6 matrix and spills on aarch64 (30 stack accesses per
+# value); the hand-written loop stays a loop.
+[[bench_fixed.known]]
+compiler = "GNU"
+arch = "aarch64"
+case = "expression<mat6>"
+max_ratio = 1.5
+reason = "the unrolled 6x6 expression spills (1.2 measured)"

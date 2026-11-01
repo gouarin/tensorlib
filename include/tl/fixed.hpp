@@ -228,7 +228,7 @@ namespace tl
         template <class R, class A, class B, class Op>
         TL_ALWAYS_INLINE constexpr R elementwise(Op op, const A& a, const B& b) noexcept
         {
-            using T = typename element_traits<result_of<A, B>>::scalar;
+            using T                    = typename element_traits<result_of<A, B>>::scalar;
             using U                    = typename element_traits<R>::scalar;
             constexpr std::size_t size = product(R::shape());
             R result{};
