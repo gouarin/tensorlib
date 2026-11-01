@@ -26,8 +26,8 @@ namespace tl
      * A specialisation declares two members:
      *
      * - `scalar`, one of tl::scalar;
-     * - `extents`, a `std::array<std::size_t, R>` of rank `R` from 0 to 4 giving the component
-     *   shape; the components are stored in C order.
+     * - `extents`, a `std::array<std::size_t, R>` of any rank `R` giving the component shape;
+     *   the components are stored in C order.
      *
      * tensorlib provides the specialisations for every tl::scalar (rank 0) and every
      * tl::fixed. Specialise it for your own type when it is trivially copyable and laid out
@@ -88,13 +88,13 @@ namespace tl
      * @brief A type tensorlib can store in a tensor and compute with.
      *
      * Satisfied when `T` has a tl::element_traits specialisation whose `scalar` is one of
-     * tl::scalar and whose `extents` has rank 4 or less, and `T` is trivially copyable with
-     * the size and alignment of `scalar[extents...]`. The check catches traits that do not
-     * match the type, such as a wrong number of components.
+     * tl::scalar, and `T` is trivially copyable with the size and alignment of
+     * `scalar[extents...]`. The check catches traits that do not match the type, such as a
+     * wrong number of components.
      */
     template <class T>
     concept element = requires {
         typename element_traits<T>::scalar;
         element_traits<T>::extents;
-    } && scalar<typename element_traits<T>::scalar> && (element_traits<T>::extents.size() <= 4) && std::is_trivially_copyable_v<T> && sizeof(T) == sizeof(typename element_traits<T>::scalar) * detail::product(element_traits<T>::extents) && alignof(T) == alignof(typename element_traits<T>::scalar);
+    } && scalar<typename element_traits<T>::scalar> && std::is_trivially_copyable_v<T> && sizeof(T) == sizeof(typename element_traits<T>::scalar) * detail::product(element_traits<T>::extents) && alignof(T) == alignof(typename element_traits<T>::scalar);
 }

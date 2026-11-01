@@ -42,6 +42,7 @@ namespace
 {
     static_assert(tl::element<double> && tl::element<std::uint8_t> && tl::element<bool>);
     static_assert(tl::element<tl::fixed<float, 3>> && tl::element<tl::fixed<double, 2, 3, 4, 5>>);
+    static_assert(tl::element<tl::fixed<double, 2, 2, 2, 2, 2, 2, 2, 2>>);
     static_assert(tl::element_traits<tl::fixed<float, 2, 3>>::extents == std::array<std::size_t, 2>{2, 3});
 
     // A user type is an element once its traits describe its layout exactly.

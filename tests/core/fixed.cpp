@@ -15,26 +15,63 @@ namespace
 
     // Storage and indexing
 
-    static_assert(std::is_aggregate_v<vec3> && std::is_trivially_copyable_v<vec3>);
+    static_assert(std::is_trivially_copyable_v<vec3> && std::is_standard_layout_v<vec3>);
     static_assert(sizeof(mat2) == 4 * sizeof(double));
     static_assert(mat2::shape() == std::array<std::size_t, 2>{2, 2});
     static_assert(vec3{}(0) == 0. && vec3{}(2) == 0.);
 
     constexpr mat2 m{1., 2., 3., 4.};
     static_assert(m(0, 1) == 2. && m(1, 0) == 3.); // C order
+
+    // Any rank: a rank-6 fixed indexes, slices and computes like a small one.
+    using rank6 = tl::fixed<int, 2, 1, 2, 1, 2, 3>;
+    static_assert(sizeof(rank6) == 24 * sizeof(int));
+
+    constexpr rank6 iota()
+    {
+        rank6 r{};
+        for (std::size_t i = 0; i < 24; ++i)
+        {
+            r.elements[i] = static_cast<int>(i);
+        }
+        return r;
+    }
+
+    constexpr rank6 r6 = iota();
+    static_assert(r6(1, 0, 1, 0, 1, 2) == 23);
+    static_assert(r6(1, 0, 1)(0, 1, 2) == 23);
+    static_assert(std::is_same_v<decltype(r6(1, 0)), tl::fixed_view<const int, 2, 1, 2, 3>>);
+    static_assert((r6 + 1)(1, 0, 1, 0, 1, 2) == 24);
+
+    // Construction
+
+    template <class F, class... A>
+    concept list_constructible = requires(A... values) { F{values...}; };
+
+    static_assert(!list_constructible<mat2, double, double>);                   // the flat form takes every element
+    static_assert(!list_constructible<tl::fixed<std::int8_t, 2>, int, double>); // no narrowing
+    static_assert(!std::is_convertible_v<double, tl::fixed<double, 1>>);        // a scalar is not a fixed
+    static_assert(tl::fixed<double, 1>{2.}(0) == 2.);
+
 // MSVC before 19.50 cannot read nested braces bound to an array reference in constant
-// evaluation (C2131); fixed_from works there at run time, tested below.
+// evaluation (C2131); they work there at run time, tested below.
 #if !defined(_MSC_VER) || _MSC_VER >= 1950
-    static_assert(tl::fixed_from({
+    static_assert(mat2{
                       {1., 2.},
                       {3., 4.}
-    })
+    }
                   == m);
-    static_assert(tl::fixed_from({
+    static_assert(mat2{{1.}, {3.}} == mat2{1., 0., 3., 0.}); // missing values are zeros
+    static_assert(tl::fixed<int, 2, 2, 2>{
                       {{1, 2}, {3, 4}},
-                      {{5, 6}, {7, 8}}
-    })
+                      {{5, 6}, {7, 8}},
+    }
                   == tl::fixed<int, 2, 2, 2>{1, 2, 3, 4, 5, 6, 7, 8});
+    static_assert(rank6{
+                      {{{{{0, 1, 2}, {3, 4, 5}}}, {{{6, 7, 8}, {9, 10, 11}}}}},
+                      {{{{{12, 13, 14}, {15, 16, 17}}}, {{{18, 19, 20}, {21, 22, 23}}}}},
+                  }
+                  == r6);
 #endif
 
     // Arithmetic
@@ -153,14 +190,14 @@ TEST(fixed, writes_through_views_at_run_time)
 
 TEST(fixed, builds_from_nested_braces_at_run_time)
 {
-    EXPECT_EQ(tl::fixed_from({
+    EXPECT_EQ((mat2{
                   {1., 2.},
                   {3., 4.}
     }),
               m);
-    EXPECT_EQ(tl::fixed_from({
+    EXPECT_EQ((tl::fixed<int, 2, 2, 2>{
                   {{1, 2}, {3, 4}},
-                  {{5, 6}, {7, 8}}
+                  {{5, 6}, {7, 8}},
     }),
               (tl::fixed<int, 2, 2, 2>{1, 2, 3, 4, 5, 6, 7, 8}));
 }

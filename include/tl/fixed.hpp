@@ -12,7 +12,7 @@
 namespace tl
 {
     template <scalar T, std::size_t... N>
-        requires(sizeof...(N) >= 1 && sizeof...(N) <= 4 && ((N > 0) && ...))
+        requires(sizeof...(N) >= 1 && ((N > 0) && ...))
     struct fixed;
 
     template <class T, std::size_t... N>
@@ -76,6 +76,76 @@ namespace tl
 
         template <std::size_t K, class T, std::size_t... N>
         using subview = typename drop_extents<K, T, N...>::type;
+
+        // T[N0][N1]..., the C array of shape N...: nested braces initialise only C arrays.
+        template <class T, std::size_t... N>
+        struct c_array
+        {
+            using type = T;
+        };
+
+        template <class T, std::size_t First, std::size_t... Rest>
+        struct c_array<T, First, Rest...>
+        {
+            using type = typename c_array<T, Rest...>::type[First]; // NOLINT(*-avoid-c-arrays)
+        };
+
+        template <class X, std::size_t>
+        using repeat = X;
+
+        // Writes the scalars of a value or of a C array of any rank into `out` from position
+        // `next` on, in C order, and advances `next` past them.
+        template <class T, std::size_t S, class A>
+        constexpr void copy_in_c_order(std::array<T, S>& out, std::size_t& next, const A& values) noexcept
+        {
+            if constexpr (std::is_array_v<A>)
+            {
+                for (const auto& value : values)
+                {
+                    copy_in_c_order(out, next, value);
+                }
+            }
+            else
+            {
+                out[next++] = values;
+            }
+        }
+
+        // The elements of a fixed of shape `Row[R...]` holding `F...` scalars, with one
+        // constructor per way to write them: the scalars in C order, or one nested-brace
+        // `Row` per leading index. The index packs give both constructors a fixed number of
+        // parameters, so the braces need no deduction and any rank works.
+        template <class T, class Row, class Rows, class Flat>
+        struct fixed_storage;
+
+        template <class T, class Row, std::size_t... R, std::size_t... F>
+        struct fixed_storage<T, Row, std::index_sequence<R...>, std::index_sequence<F...>>
+        {
+            std::array<T, sizeof...(F)> elements;
+
+            constexpr fixed_storage() noexcept = default;
+
+            constexpr explicit(sizeof...(F) == 1) fixed_storage(repeat<T, F>... values) noexcept
+                : elements{values...}
+            {
+            }
+
+            constexpr explicit(sizeof...(R) == 1) fixed_storage(const repeat<Row, R>&... rows) noexcept
+                requires std::is_array_v<Row>
+                : elements{}
+            {
+                std::size_t next = 0;
+                (copy_in_c_order(elements, next, rows), ...);
+            }
+
+            friend constexpr bool operator==(const fixed_storage&, const fixed_storage&) = default;
+        };
+
+        template <class T, std::size_t... N>
+        using fixed_storage_of = fixed_storage<T,
+                                               std::remove_extent_t<typename c_array<T, N...>::type>,
+                                               std::make_index_sequence<std::extent_v<typename c_array<T, N...>::type>>,
+                                               std::make_index_sequence<(N * ...)>>;
 
         // Element or block at the leading indices `index...` of C-order storage of shape N...
         template <std::size_t... N, class T, std::convertible_to<std::size_t>... I>
@@ -183,32 +253,48 @@ namespace tl
      * @brief A small tensor whose shape is known at compile time, stored inline.
      *
      * A `fixed` holds its elements in a flat array, in C order (the last index varies
-     * fastest). It is a plain aggregate: it is trivially copyable, it has exactly the layout
-     * of `T[N0][N1]...`, and every operation on it is evaluated eagerly and can be used in
-     * constant expressions. It is used for local computations and as the element type of
-     * larger tensors, such as a field of 3-vectors.
+     * fastest). It is trivially copyable, it has exactly the layout of `T[N0][N1]...`, and
+     * every operation on it is evaluated eagerly and can be used in constant expressions. It
+     * is used for local computations and as the element type of larger tensors, such as a
+     * field of 3-vectors.
      *
-     * Values are written as a flat list in C order, or with nested braces through
-     * tl::fixed_from(). `{}` gives zeros.
+     * Values are written with nested braces, one pair per leading index, at any rank, or as
+     * a flat list of every element in C order. A missing value in a pair of braces is zero,
+     * and `{}` gives zeros.
      *
      * @code
      * tl::fixed<double, 3> v{1., 2., 3.};
-     * tl::fixed<double, 2, 2> m{1., 2., 3., 4.};              // m(1, 0) == 3.
-     * tl::fixed<double, 2, 2> same = tl::fixed_from({{1., 2.}, {3., 4.}});
+     * tl::fixed<double, 2, 2> m{{1., 2.}, {3., 4.}};          // m(1, 0) == 3.
+     * tl::fixed<double, 2, 2> same{1., 2., 3., 4.};
+     * tl::fixed<double, 2, 2, 2> t{
+     *     {{1., 2.}, {3., 4.}},
+     *     {{5., 6.}, {7., 8.}},
+     * };
      * @endcode
+     *
+     * @note MSVC before 19.50 cannot read nested braces in a constant expression (error
+     * C2131); they work at run time. Use the flat form for `constexpr` values with those
+     * compilers.
      *
      * `==` and `!=` compare whole values. tl::equal(), tl::less() and the other Array API
      * comparisons compare element by element.
      *
      * @tparam T Element type, one of tl::scalar.
-     * @tparam N Extent of each axis, 1 to 4 axes, each extent at least 1.
+     * @tparam N Extent of each axis: at least one axis, each extent at least 1.
      */
     template <scalar T, std::size_t... N>
-        requires(sizeof...(N) >= 1 && sizeof...(N) <= 4 && ((N > 0) && ...))
-    struct fixed
+        requires(sizeof...(N) >= 1 && ((N > 0) && ...))
+    struct fixed : private detail::fixed_storage_of<T, N...>
     {
-        /// The elements in C order. Prefer `operator()` to reach them by index.
-        std::array<T, (N * ...)> elements;
+        /**
+         * @brief Zeros with `{}`; nested braces, one pair per leading index; or every
+         * element in C order.
+         */
+        using detail::fixed_storage_of<T, N...>::fixed_storage_of;
+
+        /// The elements in C order, a `std::array<T, (N * ...)>`. Prefer `operator()` to
+        /// reach them by index.
+        using detail::fixed_storage_of<T, N...>::elements;
 
         /// @brief The extent of each axis. @return `{N...}`.
         static constexpr std::array<std::size_t, sizeof...(N)> shape() noexcept
@@ -437,71 +523,6 @@ namespace tl
 
         T* m_data;
     };
-
-    /**
-     * @brief A tl::fixed of rank 2 written with nested braces, one pair per row.
-     *
-     * @code
-     * constexpr auto m = tl::fixed_from({{1., 2.}, {3., 4.}});   // tl::fixed<double, 2, 2>
-     * @endcode
-     *
-     * The flat form `tl::fixed<double, 2, 2>{1., 2., 3., 4.}` gives the same value.
-     *
-     * @note MSVC before 19.50 cannot evaluate `fixed_from` in a constant expression
-     * (error C2131 on nested braces bound to an array reference); it works at run time. Use
-     * the flat form for `constexpr` values with those compilers.
-     *
-     * @param values Nested braces whose shape gives the extents of the result.
-     * @return The tl::fixed holding `values`.
-     */
-    // Nested braces deduce only C arrays, hence the C-array parameters.
-    template <scalar T, std::size_t N0, std::size_t N1>
-    constexpr fixed<T, N0, N1> fixed_from(const T (&values)[N0][N1]) noexcept // NOLINT(*-avoid-c-arrays)
-    {
-        fixed<T, N0, N1> result{};
-        for (std::size_t i = 0; i < N0; ++i)
-        {
-            for (std::size_t j = 0; j < N1; ++j)
-            {
-                result(i, j) = values[i][j];
-            }
-        }
-        return result;
-    }
-
-    /**
-     * @brief A tl::fixed of rank 3 written with nested braces.
-     *
-     * @param values Nested braces whose shape gives the extents of the result.
-     * @return The tl::fixed holding `values`.
-     */
-    template <scalar T, std::size_t N0, std::size_t N1, std::size_t N2>
-    constexpr fixed<T, N0, N1, N2> fixed_from(const T (&values)[N0][N1][N2]) noexcept // NOLINT(*-avoid-c-arrays)
-    {
-        fixed<T, N0, N1, N2> result{};
-        for (std::size_t i = 0; i < N0; ++i)
-        {
-            result(i) = fixed_from(values[i]);
-        }
-        return result;
-    }
-
-    /**
-     * @brief A tl::fixed of rank 4 written with nested braces.
-     *
-     * @param values Nested braces whose shape gives the extents of the result.
-     * @return The tl::fixed holding `values`.
-     */
-    template <scalar T, std::size_t N0, std::size_t N1, std::size_t N2, std::size_t N3>
-    constexpr fixed<T, N0, N1, N2, N3> fixed_from(const T (&values)[N0][N1][N2][N3]) noexcept // NOLINT(*-avoid-c-arrays)
-    {
-        fixed<T, N0, N1, N2, N3> result{};
-        for (std::size_t i = 0; i < N0; ++i)
-        {
-            result(i) = fixed_from(values[i]);
-        }
-        return result;
-    }
 
     /**
      * @brief Storage of a tl::fixed as an element type: its scalar, repeated over its shape.

@@ -8,7 +8,8 @@ It serves in local computations and as the element type of larger tensors.
 :language: cpp
 ```
 
-Values are written as a flat list in C order, `tl::fixed<double, 2, 2>{1., 2., 3., 4.}`, or with nested braces through `tl::fixed_from`.
+Values are written with nested braces, one pair per leading index and at any rank, `tl::fixed<double, 2, 2>{{1., 2.}, {3., 4.}}`, or as a flat list of every element in C order, `tl::fixed<double, 2, 2>{1., 2., 3., 4.}`.
+A value missing in a pair of braces is zero, and `{}` gives zeros.
 As many indices as the rank give an element; fewer give a `tl::fixed_view` of a block, and writing through it writes into the `fixed`.
 
 Arithmetic works element by element between two `fixed` of the same shape and element type, or with a scalar, which takes the element type of the `fixed`: `tl::fixed<float, 2>{} * 0.5` is a `tl::fixed<float, 2>`.
@@ -25,17 +26,6 @@ Operands of different shapes or element types do not compile.
 
 ```{doxygenclass} tl::fixed_view
 :members:
-```
-
-## fixed_from
-
-```{doxygenfunction} tl::fixed_from(const T (&values)[N0][N1])
-```
-
-```{doxygenfunction} tl::fixed_from(const T (&values)[N0][N1][N2])
-```
-
-```{doxygenfunction} tl::fixed_from(const T (&values)[N0][N1][N2][N3])
 ```
 
 ## Comparisons

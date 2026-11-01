@@ -212,7 +212,7 @@ From [Binding surfaces for a lazy tensor library](issues/06-binding-surfaces.md)
   - Every array operation goes through `tl_apply` on a `tl_op*` from `tl_op_find`, with typed attributes, and a catalogue generated from the C++ registry.
   - `tl_abi_version()` major.minor, additions only, `tl_has_feature`.
 - **Types and attributes.**
-  - Structured `tl_dtype` with up to 4 component dimensions, so `fixed` tensors are creatable. User element types pass as opaque.
+  - Structured `tl_dtype` with component dimensions of any rank, so `fixed` tensors are creatable. User element types pass as opaque.
   - Memory space as an enumeration plus device, row- and column-major layouts.
   - `tl_communicator*` from the Fortran MPI handle, opaque `tl_distribution*`, `tl_local_part` returning a view.
 - **Extensions.** `tl_trace` makes a catalogue operation or combiner from a binding callback, and external functions register with a host symbol free of interpreter locks. Backends and resources are chosen by name only.
