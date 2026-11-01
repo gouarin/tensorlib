@@ -209,9 +209,9 @@ namespace
     using vec3  = tl::fixed<double, 3>;             // 24 bytes
     using mat3  = tl::fixed<double, 3, 3>;          // 72 bytes
     using vec8f = tl::fixed<float, 8>;              // 32 bytes
-    using mat4  = tl::fixed<double, 4, 4>;          // 128 bytes, unrolled on every target
-    using rank5 = tl::fixed<double, 2, 2, 2, 2, 2>; // 256 bytes, unrolled with AVX or on Arm, a loop on SSE2
-    using mat6  = tl::fixed<double, 6, 6>;          // 288 bytes, a loop except with AVX-512
+    using mat4  = tl::fixed<double, 4, 4>;          // 128 bytes
+    using rank5 = tl::fixed<double, 2, 2, 2, 2, 2>; // 256 bytes
+    using mat6  = tl::fixed<double, 6, 6>;          // 288 bytes
 }
 
 BENCHMARK_TEMPLATE(expression_fixed, vec3);

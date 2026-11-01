@@ -40,7 +40,10 @@ RUN = ["--benchmark_repetitions=10", "--benchmark_enable_random_interleaving=tru
 
 def limits_for(path, executable, compiler, arch):
     """The table of `executable` and its known gaps for this compiler and architecture."""
-    table = tomllib.loads(pathlib.Path(path).read_text())[executable]
+    tables = tomllib.loads(pathlib.Path(path).read_text())
+    if executable not in tables:
+        sys.exit(f"error: {path} has no table [{executable}] for the executable {executable}")
+    table = tables[executable]
     known = [k for k in table.get("known", []) if k["compiler"] == compiler and k.get("arch", arch) == arch]
     return table, known
 

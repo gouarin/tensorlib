@@ -17,41 +17,6 @@ candidate = "fixed"
 reference = "loop"
 max_ratio = 1.15
 
-# Above the unrolled size (half the vector registers) the operators use loops, and GCC
-# keeps the temporaries in memory.
-[[bench_fixed.known]]
-compiler = "GNU"
-arch = "aarch64"
-case = "expression<mat6>"
-max_ratio = 6.0
-reason = "above the unrolled size, GCC keeps the three temporaries in memory (5.0 measured)"
-
-[[bench_fixed.known]]
-compiler = "GNU"
-arch = "aarch64"
-case = "compound<mat6>"
-max_ratio = 2.6
-reason = "above the unrolled size, GCC keeps the temporary in memory (2.1 measured)"
-
-[[bench_fixed.known]]
-compiler = "GNU"
-arch = "x86_64"
-case = "expression<mat6>"
-max_ratio = 8.5
-reason = "above the unrolled size, GCC keeps the three temporaries in memory (6.9 measured)"
-
-[[bench_fixed.known]]
-compiler = "GNU"
-arch = "x86_64"
-case = "compound<mat6>"
-max_ratio = 4.0
-reason = "above the unrolled size, GCC keeps the temporary in memory (3.2 measured)"
-
-[[bench_fixed.known]]
-compiler = "GNU"
-kernel = "tl::fixed<double, 6ul, 6ul>"
-reason = "above the unrolled size, GCC zeroes the temporaries with memset"
-
 # Clang does not contract into FMA across a temporary under its default -ffp-contract=on;
 # with -ffp-contract=fast these cases match the loop.
 [[bench_fixed.known]]

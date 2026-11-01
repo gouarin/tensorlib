@@ -1,7 +1,7 @@
 #pragma once
 
 #include <tl/detail/assert.hpp>
-#include <tl/detail/inline.hpp>
+#include <tl/detail/codegen.hpp>
 #include <tl/element.hpp>
 
 #include <array>
@@ -223,87 +223,32 @@ namespace tl
             }
         }
 
-        // Bytes held by the vector registers of the target: their number times their width.
-        inline constexpr std::size_t vector_register_bytes =
-#ifdef __AVX512F__
-            std::size_t{32} * 64;
-#elif defined(__AVX__)
-            std::size_t{16} * 32;
-#elif defined(__aarch64__) || defined(_M_ARM64)
-            std::size_t{32} * 16;
-#else
-            std::size_t{16} * 16; // SSE2, the x86-64 baseline, and other targets
-#endif
-
-        // Values that fit in half the vector registers are processed in straight-line code,
-        // one statement per element, so that the compiler keeps a value and its temporaries
-        // in registers. Larger values use a loop, whose compile time does not grow with the
-        // size: unrolled, they spill (clang on x86-64 SSE2 at 256 bytes) and run slower.
-        inline constexpr std::size_t unrolled_bytes = vector_register_bytes / 2;
-
-        template <class Indices>
-        struct unrolled;
-
-        // Element-wise kernels over the indices I..., one statement per element.
-        template <std::size_t... I>
-        struct unrolled<std::index_sequence<I...>>
-        {
-            template <class R, class T, class U, class Op, class A, class B>
-            TL_ALWAYS_INLINE static constexpr R apply(Op op, const A& a, const B& b) noexcept
-            {
-                return R{static_cast<U>(op(component<T>(a, I), component<T>(b, I)))...};
-            }
-
-            template <class T, class Op, class B>
-            TL_ALWAYS_INLINE static constexpr void update(T* out, Op op, const B& operand) noexcept
-            {
-                ((out[I] = static_cast<T>(op(out[I], component<T>(operand, I)))), ...);
-            }
-        };
-
-        template <class F>
-        constexpr bool unrolls = sizeof(F) <= unrolled_bytes;
-
         // Applies `op` element by element into a new fixed R; a scalar operand is converted
         // to the element type of the fixed one.
         template <class R, class A, class B, class Op>
         TL_ALWAYS_INLINE constexpr R elementwise(Op op, const A& a, const B& b) noexcept
         {
-            using T                    = typename element_traits<result_of<A, B>>::scalar;
-            using U                    = typename element_traits<R>::scalar;
-            constexpr std::size_t size = product(R::shape());
-            if constexpr (unrolls<R>)
+            using T = typename element_traits<result_of<A, B>>::scalar;
+            using U = typename element_traits<R>::scalar;
+            R result{};
+            TL_UNROLL_ELEMENTS
+            for (std::size_t i = 0; i < product(R::shape()); ++i)
             {
-                return unrolled<std::make_index_sequence<size>>::template apply<R, T, U>(op, a, b);
+                result.elements[i] = static_cast<U>(op(component<T>(a, i), component<T>(b, i)));
             }
-            else
-            {
-                R result{};
-                for (std::size_t i = 0; i < size; ++i)
-                {
-                    result.elements[i] = static_cast<U>(op(component<T>(a, i), component<T>(b, i)));
-                }
-                return result;
-            }
+            return result;
         }
 
         // Applies `op` element by element to `target` and `operand`, into `target`.
         template <class A, class Op, class B>
         TL_ALWAYS_INLINE constexpr void update(A& target, Op op, const B& operand) noexcept
         {
-            using T                    = element_of<A>;
-            constexpr std::size_t size = product(value_of<A>::shape());
-            auto* const out            = target.data();
-            if constexpr (unrolls<value_of<A>>)
+            using T         = element_of<A>;
+            auto* const out = target.data();
+            TL_UNROLL_ELEMENTS
+            for (std::size_t i = 0; i < product(value_of<A>::shape()); ++i)
             {
-                unrolled<std::make_index_sequence<size>>::update(out, op, operand);
-            }
-            else
-            {
-                for (std::size_t i = 0; i < size; ++i)
-                {
-                    out[i] = static_cast<T>(op(out[i], component<T>(operand, i)));
-                }
+                out[i] = static_cast<T>(op(out[i], component<T>(operand, i)));
             }
         }
     }
