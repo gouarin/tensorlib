@@ -1,0 +1,11 @@
+# Limits of the self-tests of tools/ci/check_benchmarks.py.
+[bench_demo]
+candidate = "fixed"
+reference = "loop"
+max_ratio = 1.15
+
+[[bench_demo.known]]
+compiler = "GNU"
+case = "compound<big>"
+max_ratio = 3.0
+reason = "a known gap keeps its own limit"

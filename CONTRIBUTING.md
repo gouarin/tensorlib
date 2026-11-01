@@ -37,6 +37,23 @@ micromamba run -n tensorlib-docs sphinx-build -W -n -b html docs/source build/do
 
 The build runs Doxygen itself and fails on any warning, including an undocumented public entity or parameter. Open `build/docs/index.html` to read the result. CI builds the same site and attaches it to each run as the `documentation` artifact.
 
+## Performance
+
+Every addition comes with a benchmark in `benchmarks/` (`-DTL_BUILD_BENCHMARKS=ON`) that runs the new code next to the code a user would write by hand for the same job, on the same data layout. Name the benchmarks `<kernel>_<variant><<case>>`, and add a flat-array variant when the layout itself may cost something. Run them with GCC and Clang in a Release build, read the assembly of any gap, and reproduce a surprising result in plain C before drawing a conclusion.
+
+`benchmarks/limits.toml` sets how far behind the hand-written code the library may be. In a Release build, `ctest -L bench` checks two things for each benchmark executable:
+
+- the median time of the library code over that of the hand-written code stays below its limit (1.15 by default). Both run interleaved in the same process, so the check holds on shared CI runners;
+- no library kernel calls a function that the hand-written kernel does not call. A call left in a kernel means the compiler did not inline the library code, which is how most regressions show up. This check does not depend on timing.
+
+CI runs both with GCC and Clang. A gap that cannot be closed goes in `limits.toml` as a `known` entry, for one compiler and optionally one architecture, with its reason and a limit a little above the measured value, so that it cannot grow unnoticed.
+
+```bash
+cmake --preset linux-release -DTL_BUILD_BENCHMARKS=ON
+cmake --build --preset linux-release
+ctest --preset linux-release -L bench --output-on-failure
+```
+
 ## Style rules
 
 The full rules are in [section 15 of the spec](.scratch/core-architecture/spec.md#15-style-rules). Tools check most of them: clang-format, clang-tidy, compiler warnings, and CI scripts for the public header whitelist and the one-line facade rule. A reviewer checks the rest with this list:
@@ -48,6 +65,7 @@ The full rules are in [section 15 of the spec](.scratch/core-architecture/spec.m
 - Every public entity has a Doxygen comment and appears on a page of the Sphinx site.
 - Every public function has a documentation example that CI compiles and runs on the serial backend.
 - Every fixed bug comes with a regression test.
+- Every addition comes with a benchmark against hand-written code and its limits in `benchmarks/limits.toml`.
 
 ## Commits
 

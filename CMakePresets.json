@@ -210,6 +210,11 @@
       "configurePreset": "linux-debug"
     },
     {
+      "name": "linux-release",
+      "inherits": "base",
+      "configurePreset": "linux-release"
+    },
+    {
       "name": "linux-ci",
       "inherits": "base",
       "configurePreset": "linux-ci"

@@ -24,6 +24,7 @@ if(TL_BUILD_TESTS)
 endif()
 
 if(TL_BUILD_BENCHMARKS)
+    enable_testing()
     add_subdirectory(benchmarks)
 endif()
 
