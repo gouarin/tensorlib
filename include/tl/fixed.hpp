@@ -1,6 +1,7 @@
 #pragma once
 
 #include <tl/detail/assert.hpp>
+#include <tl/detail/inline.hpp>
 #include <tl/element.hpp>
 
 #include <array>
@@ -222,29 +223,75 @@ namespace tl
             }
         }
 
+        // Values up to this size are processed in straight-line code, one statement per
+        // element, so that the compiler keeps a value and its temporaries in registers:
+        // 256 bytes are 16 vector registers of 16 bytes, half of what an x86-64 or Arm core
+        // has. Larger values use a loop, whose compile time does not grow with the size.
+        inline constexpr std::size_t unrolled_bytes = 256;
+
+        template <class Indices>
+        struct unrolled;
+
+        // Element-wise kernels over the indices I..., one statement per element.
+        template <std::size_t... I>
+        struct unrolled<std::index_sequence<I...>>
+        {
+            template <class R, class T, class U, class Op, class A, class B>
+            TL_ALWAYS_INLINE static constexpr R apply(Op op, const A& a, const B& b) noexcept
+            {
+                return R{static_cast<U>(op(component<T>(a, I), component<T>(b, I)))...};
+            }
+
+            template <class T, class Op, class B>
+            TL_ALWAYS_INLINE static constexpr void update(T* out, Op op, const B& operand) noexcept
+            {
+                ((out[I] = static_cast<T>(op(out[I], component<T>(operand, I)))), ...);
+            }
+        };
+
+        template <class F>
+        constexpr bool unrolls = sizeof(F) <= unrolled_bytes;
+
         // Applies `op` element by element into a new fixed R; a scalar operand is converted
         // to the element type of the fixed one.
         template <class R, class A, class B, class Op>
-        constexpr R elementwise(Op op, const A& a, const B& b) noexcept
+        TL_ALWAYS_INLINE constexpr R elementwise(Op op, const A& a, const B& b) noexcept
         {
-            using T = typename element_traits<result_of<A, B>>::scalar;
-            using U = typename element_traits<R>::scalar;
-            R result{};
-            for (std::size_t i = 0; i < product(R::shape()); ++i)
+            using T                    = typename element_traits<result_of<A, B>>::scalar;
+            using U                    = typename element_traits<R>::scalar;
+            constexpr std::size_t size = product(R::shape());
+            if constexpr (unrolls<R>)
             {
-                result.elements[i] = static_cast<U>(op(component<T>(a, i), component<T>(b, i)));
+                return unrolled<std::make_index_sequence<size>>::template apply<R, T, U>(op, a, b);
             }
-            return result;
+            else
+            {
+                R result{};
+                for (std::size_t i = 0; i < size; ++i)
+                {
+                    result.elements[i] = static_cast<U>(op(component<T>(a, i), component<T>(b, i)));
+                }
+                return result;
+            }
         }
 
+        // Applies `op` element by element to `target` and `operand`, into `target`.
         template <class A, class Op, class B>
-        constexpr void update(A& target, Op op, const B& operand) noexcept
+        TL_ALWAYS_INLINE constexpr void update(A& target, Op op, const B& operand) noexcept
         {
-            using T         = element_of<A>;
-            auto* const out = target.data();
-            for (std::size_t i = 0; i < product(value_of<A>::shape()); ++i)
+            using T                    = element_of<A>;
+            constexpr std::size_t size = product(value_of<A>::shape());
+            auto* const out            = target.data();
+            if constexpr (unrolls<value_of<A>>)
             {
-                out[i] = static_cast<T>(op(out[i], component<T>(operand, i)));
+                unrolled<std::make_index_sequence<size>>::update(out, op, operand);
+            }
+            else
+            {
+                for (std::size_t i = 0; i < size; ++i)
+                {
+                    out[i] = static_cast<T>(op(out[i], component<T>(operand, i)));
+                }
             }
         }
     }
@@ -574,7 +621,7 @@ namespace tl
      */
     template <class A, class B>
         requires detail::equality_operands<A, B>
-    constexpr auto equal(const A& a, const B& b) noexcept
+    TL_ALWAYS_INLINE constexpr auto equal(const A& a, const B& b) noexcept
     {
         return detail::elementwise<detail::mask_of<A, B>>(
             [](auto x, auto y)
@@ -598,7 +645,7 @@ namespace tl
      */
     template <class A, class B>
         requires detail::equality_operands<A, B>
-    constexpr auto not_equal(const A& a, const B& b) noexcept
+    TL_ALWAYS_INLINE constexpr auto not_equal(const A& a, const B& b) noexcept
     {
         return detail::elementwise<detail::mask_of<A, B>>(
             [](auto x, auto y)
@@ -622,7 +669,7 @@ namespace tl
      */
     template <class A, class B>
         requires detail::ordered_operands<A, B>
-    constexpr auto less(const A& a, const B& b) noexcept
+    TL_ALWAYS_INLINE constexpr auto less(const A& a, const B& b) noexcept
     {
         return detail::elementwise<detail::mask_of<A, B>>(
             [](auto x, auto y)
@@ -646,7 +693,7 @@ namespace tl
      */
     template <class A, class B>
         requires detail::ordered_operands<A, B>
-    constexpr auto less_equal(const A& a, const B& b) noexcept
+    TL_ALWAYS_INLINE constexpr auto less_equal(const A& a, const B& b) noexcept
     {
         return detail::elementwise<detail::mask_of<A, B>>(
             [](auto x, auto y)
@@ -670,7 +717,7 @@ namespace tl
      */
     template <class A, class B>
         requires detail::ordered_operands<A, B>
-    constexpr auto greater(const A& a, const B& b) noexcept
+    TL_ALWAYS_INLINE constexpr auto greater(const A& a, const B& b) noexcept
     {
         return detail::elementwise<detail::mask_of<A, B>>(
             [](auto x, auto y)
@@ -694,7 +741,7 @@ namespace tl
      */
     template <class A, class B>
         requires detail::ordered_operands<A, B>
-    constexpr auto greater_equal(const A& a, const B& b) noexcept
+    TL_ALWAYS_INLINE constexpr auto greater_equal(const A& a, const B& b) noexcept
     {
         return detail::elementwise<detail::mask_of<A, B>>(
             [](auto x, auto y)
@@ -714,7 +761,7 @@ namespace tl
      */
     template <class A, class B>
         requires detail::arithmetic_operands<A, B>
-    constexpr auto operator+(const A& a, const B& b) noexcept
+    TL_ALWAYS_INLINE constexpr auto operator+(const A& a, const B& b) noexcept
     {
         return detail::elementwise<detail::result_of<A, B>>(
             [](auto x, auto y)
@@ -734,7 +781,7 @@ namespace tl
      */
     template <class A, class B>
         requires detail::arithmetic_operands<A, B>
-    constexpr auto operator-(const A& a, const B& b) noexcept
+    TL_ALWAYS_INLINE constexpr auto operator-(const A& a, const B& b) noexcept
     {
         return detail::elementwise<detail::result_of<A, B>>(
             [](auto x, auto y)
@@ -754,7 +801,7 @@ namespace tl
      */
     template <class A, class B>
         requires detail::arithmetic_operands<A, B>
-    constexpr auto operator*(const A& a, const B& b) noexcept
+    TL_ALWAYS_INLINE constexpr auto operator*(const A& a, const B& b) noexcept
     {
         return detail::elementwise<detail::result_of<A, B>>(
             [](auto x, auto y)
@@ -774,7 +821,7 @@ namespace tl
      */
     template <class A, class B>
         requires detail::arithmetic_operands<A, B>
-    constexpr auto operator/(const A& a, const B& b) noexcept
+    TL_ALWAYS_INLINE constexpr auto operator/(const A& a, const B& b) noexcept
     {
         return detail::elementwise<detail::result_of<A, B>>(
             [](auto x, auto y)
@@ -793,7 +840,7 @@ namespace tl
      */
     template <class A>
         requires detail::arithmetic_operands<A, A>
-    constexpr auto operator-(const A& a) noexcept
+    TL_ALWAYS_INLINE constexpr auto operator-(const A& a) noexcept
     {
         return detail::elementwise<detail::value_of<A>>(
             [](auto x, auto)
@@ -816,7 +863,7 @@ namespace tl
      */
     template <class A, class B>
         requires detail::fixed_like<A> && detail::arithmetic_operands<A, B>
-    constexpr A&& operator+=(A&& target, const B& operand) noexcept
+    TL_ALWAYS_INLINE constexpr A&& operator+=(A&& target, const B& operand) noexcept
     {
         detail::update(
             target,
@@ -840,7 +887,7 @@ namespace tl
      */
     template <class A, class B>
         requires detail::fixed_like<A> && detail::arithmetic_operands<A, B>
-    constexpr A&& operator-=(A&& target, const B& operand) noexcept
+    TL_ALWAYS_INLINE constexpr A&& operator-=(A&& target, const B& operand) noexcept
     {
         detail::update(
             target,
@@ -864,7 +911,7 @@ namespace tl
      */
     template <class A, class B>
         requires detail::fixed_like<A> && detail::arithmetic_operands<A, B>
-    constexpr A&& operator*=(A&& target, const B& operand) noexcept
+    TL_ALWAYS_INLINE constexpr A&& operator*=(A&& target, const B& operand) noexcept
     {
         detail::update(
             target,
@@ -888,7 +935,7 @@ namespace tl
      */
     template <class A, class B>
         requires detail::fixed_like<A> && detail::arithmetic_operands<A, B>
-    constexpr A&& operator/=(A&& target, const B& operand) noexcept
+    TL_ALWAYS_INLINE constexpr A&& operator/=(A&& target, const B& operand) noexcept
     {
         detail::update(
             target,

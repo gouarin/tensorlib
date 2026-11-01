@@ -36,7 +36,7 @@ jobs:
     steps:
       - uses: actions/checkout@v4
       - uses: lukka/get-cmake@latest
-      - run: cmake --preset linux-ci -DTL_FETCH_DEPS=ON
+      - run: cmake --preset linux-ci -DTL_FETCH_DEPS=ON -DTL_BUILD_BENCHMARKS=ON
       - run: cmake --build --preset linux-ci
       - name: Unit tests and documentation examples
         run: ctest --preset linux-ci -L "unit|example"
@@ -119,7 +119,7 @@ jobs:
       - uses: lukka/get-cmake@latest
       - name: clang-format
         run: git ls-files '*.cpp' '*.hpp' | grep -v '^.scratch/' | xargs clang-format-21 --dry-run --Werror
-      - run: cmake --preset linux-ci -DTL_FETCH_DEPS=ON
+      - run: cmake --preset linux-ci -DTL_FETCH_DEPS=ON -DTL_BUILD_BENCHMARKS=ON
       - run: cmake --build --preset linux-ci
       - name: Public headers include only the whitelist and have no version-conditional paths
         run: |
