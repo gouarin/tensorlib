@@ -19,7 +19,9 @@ function(tl_add_test name)
     add_executable(${name} ${arg_SOURCES})
     target_link_libraries(${name} PRIVATE tensorlib::core GTest::gtest_main)
     tl_set_warnings(${name})
-    gtest_discover_tests(${name} PROPERTIES LABELS "${arg_LABELS}")
+    # Hosted Windows runners can take more than the default 5 s to start a fresh
+    # executable (on-access scanning), which fails the build at test discovery.
+    gtest_discover_tests(${name} DISCOVERY_TIMEOUT 60 PROPERTIES LABELS "${arg_LABELS}")
 endfunction()
 
 add_subdirectory(core)

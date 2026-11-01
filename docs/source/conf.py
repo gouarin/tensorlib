@@ -1,6 +1,7 @@
 """Sphinx configuration of the tensorlib documentation."""
 
 import pathlib
+import re
 import subprocess
 import warnings
 
@@ -20,6 +21,14 @@ for page in xml.glob("*.xml"):
     text = page.read_text()
     if "<type>constexpr</type>" in text:
         page.write_text(text.replace("<type>constexpr</type>", "<type></type>"))
+
+# Breathe lists private base classes, which are implementation details living in
+# tl::detail (the storage of `fixed`); the C++ domain cannot resolve them either.
+private_base = re.compile(r'\s*<basecompoundref[^>]*prot="private"[^>]*>.*?</basecompoundref>')
+for page in xml.glob("*.xml"):
+    text = page.read_text()
+    if 'prot="private"' in text:
+        page.write_text(private_base.sub("", text))
 
 project = "tensorlib"
 copyright = "tensorlib developers"
