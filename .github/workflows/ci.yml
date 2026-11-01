@@ -1,6 +1,6 @@
 # Per-PR checks of the hosted CI matrix: compilers at the floor and at their latest
-# version on Linux, macOS and Windows, sanitizers, the install, and the lint checks
-# (formatting, clang-tidy, public header rules). GPU jobs run on self-hosted runners.
+# version on Linux, macOS and Windows, sanitizers, performance against hand-written code,
+# the install, and the lint checks (formatting, clang-tidy, public header rules). GPU jobs run on self-hosted runners.
 name: CI
 
 on:
@@ -36,10 +36,29 @@ jobs:
     steps:
       - uses: actions/checkout@v4
       - uses: lukka/get-cmake@latest
-      - run: cmake --preset linux-ci -DTL_FETCH_DEPS=ON
+      - run: cmake --preset linux-ci -DTL_FETCH_DEPS=ON -DTL_BUILD_BENCHMARKS=ON
       - run: cmake --build --preset linux-ci
       - name: Unit tests and documentation examples
         run: ctest --preset linux-ci -L "unit|example"
+
+  performance:
+    name: Performance, ${{ matrix.name }}
+    runs-on: ubuntu-24.04
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - { name: "GCC latest", cxx: g++-14 }
+          - { name: "Clang latest", cxx: clang++-18 }
+    env:
+      CXX: ${{ matrix.cxx }}
+    steps:
+      - uses: actions/checkout@v4
+      - uses: lukka/get-cmake@latest
+      - run: cmake --preset linux-release -DTL_FETCH_DEPS=ON -DTL_BUILD_BENCHMARKS=ON -DTL_WARNINGS_AS_ERRORS=ON
+      - run: cmake --build --preset linux-release
+      - name: Library code keeps up with hand-written code (benchmarks/limits.toml)
+        run: ctest --preset linux-release -L bench
 
   sanitizers:
     name: Linux, ASan and UBSan
@@ -119,7 +138,7 @@ jobs:
       - uses: lukka/get-cmake@latest
       - name: clang-format
         run: git ls-files '*.cpp' '*.hpp' | grep -v '^.scratch/' | xargs clang-format-21 --dry-run --Werror
-      - run: cmake --preset linux-ci -DTL_FETCH_DEPS=ON
+      - run: cmake --preset linux-ci -DTL_FETCH_DEPS=ON -DTL_BUILD_BENCHMARKS=ON
       - run: cmake --build --preset linux-ci
       - name: Public headers include only the whitelist and have no version-conditional paths
         run: |
@@ -129,3 +148,19 @@ jobs:
         run: python3 tools/ci/check_facades.py --compiler clang++-21 include build/linux-ci/include
       - name: clang-tidy
         run: git ls-files '*.cpp' | grep -v -e '^.scratch/' -e '^tools/ci/tests/' -e '^tests/install/' | xargs clang-tidy-21 -p build/linux-ci --quiet --warnings-as-errors='*'
+
+  docs:
+    name: Documentation
+    runs-on: ubuntu-24.04
+    steps:
+      - uses: actions/checkout@v4
+      - uses: mamba-org/setup-micromamba@v2
+        with:
+          environment-file: docs/environment.yml
+      - name: Build the site (Doxygen and Sphinx warnings are errors)
+        shell: bash -el {0}
+        run: sphinx-build -W -n -b html docs/source build/docs
+      - uses: actions/upload-artifact@v4
+        with:
+          name: documentation
+          path: build/docs

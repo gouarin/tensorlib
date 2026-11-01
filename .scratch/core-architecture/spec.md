@@ -212,7 +212,7 @@ From [Binding surfaces for a lazy tensor library](issues/06-binding-surfaces.md)
   - Every array operation goes through `tl_apply` on a `tl_op*` from `tl_op_find`, with typed attributes, and a catalogue generated from the C++ registry.
   - `tl_abi_version()` major.minor, additions only, `tl_has_feature`.
 - **Types and attributes.**
-  - Structured `tl_dtype` with up to 4 component dimensions, so `fixed` tensors are creatable. User element types pass as opaque.
+  - Structured `tl_dtype` with component dimensions of any rank, so `fixed` tensors are creatable. User element types pass as opaque.
   - Memory space as an enumeration plus device, row- and column-major layouts.
   - `tl_communicator*` from the Fortran MPI handle, opaque `tl_distribution*`, `tl_local_part` returning a view.
 - **Extensions.** `tl_trace` makes a catalogue operation or combiner from a binding callback, and external functions register with a host symbol free of interpreter locks. Backends and resources are chosen by name only.
@@ -240,7 +240,7 @@ From [Coding style and extension points](issues/29-coding-style-and-extension-po
 
 - **Call style.** Operations are free functions with Array API names and semantics. Options are a small aggregate per family with designated initializers: `tl::sum(a, {.axis = 0, .keepdims = true})`. One form per call. `tensor` members are only intrinsic properties (`shape()`, `dtype()`, `distribution()`), `operator()` for views, and assignment.
 - **Thin templates.** A public operation is a template constrained by `tl::operand` whose body is one line: `tl::as_expr` on the operands, then a call to a non-template function compiled once in a `.cpp`. `fixed<T, N...>` is the only substantial generic code in public headers.
-- **Names.** `snake_case` for types, functions and concepts; `PascalCase` template parameters; no member prefixes; `_options` suffix for option aggregates. Namespaces `tl`, `tl::detail`, and one per optional component (`tl::kokkos`, `tl::serial`, `tl::mpi`, `tl::petsc`, `tl::tpetra`). `TL_` prefix for macros and environment variables, no API macros.
+- **Names.** `snake_case` for types, functions and concepts; `PascalCase` template parameters; no member prefixes; `_options` suffix for option aggregates. Namespaces `tl`, `tl::detail`, and one per optional component (`tl::kokkos`, `tl::serial`, `tl::mpi`, `tl::petsc`, `tl::tpetra`). `TL_` prefix for macros and environment variables.
 - **Layout.** `include/tl/` public, `include/tl/detail/` internal, `src/<component>/` mirroring it, one file per glossary concept named after it. Users include `<tl/tl.hpp>` plus one header per optional component.
 - **Local rules.**
   - Observe by `const&`, take sinks by value and move. Raw pointers never own; smart pointers stay internal. `std::span` or `std::initializer_list` for small host lists.

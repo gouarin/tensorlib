@@ -1,0 +1,17 @@
+# Tools that build the documentation: Doxygen reads the public headers, Sphinx and
+# Breathe turn its XML into the site. Pinned, because the build fails on warnings and
+# a new release can add some.
+name: tensorlib-docs
+
+channels:
+  - conda-forge
+
+dependencies:
+  - breathe=5.0.0
+  - doxygen=1.18.0
+  - myst-parser=5.1.0
+  - pip
+  - python=3.11
+  - sphinx=8.2.3
+  - pip:
+      - furo==2025.12.19

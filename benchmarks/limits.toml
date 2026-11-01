@@ -1,0 +1,50 @@
+# Performance limits of the benchmarks, checked by tools/ci/check_benchmarks.py in a
+# Release build (`ctest -L bench`).
+#
+# Each table is a benchmark executable whose benchmarks are named
+# <kernel>_<variant><<case>>. `candidate` is the library code and `reference` the
+# hand-written code it must keep up with: the median time of the candidate over that of
+# the reference must stay at or below `max_ratio`, and a candidate kernel must not call a
+# function its reference does not call.
+#
+# A `known` entry records a gap for one compiler (CMAKE_CXX_COMPILER_ID), and optionally
+# one architecture (`arch`, as Python's platform.machine(): x86_64, aarch64), with its reason.
+# `case` gives the case its own limit, set a little above the measured gap so that the gap
+# cannot grow; `kernel` lets the kernels whose template arguments contain it keep calls.
+
+[bench_fixed]
+candidate = "fixed"
+reference = "loop"
+max_ratio = 1.15
+
+# Clang does not contract into FMA across a temporary under its default -ffp-contract=on;
+# with -ffp-contract=fast these cases match the loop.
+[[bench_fixed.known]]
+compiler = "Clang"
+arch = "aarch64"
+case = "expression<vec8f>"
+max_ratio = 1.9
+reason = "no FMA across temporaries under -ffp-contract=on (1.57 measured)"
+
+[[bench_fixed.known]]
+compiler = "Clang"
+arch = "aarch64"
+case = "expression<vec3>"
+max_ratio = 1.4
+reason = "no FMA across temporaries under -ffp-contract=on (1.17 measured)"
+
+[[bench_fixed.known]]
+compiler = "Clang"
+arch = "aarch64"
+case = "compound<vec3>"
+max_ratio = 2.1
+reason = "after a temporary, the LLVM vectoriser picks ld3/st3; plain C does the same (1.76 measured)"
+
+# GCC unrolls the 36 elements of a 6x6 matrix and spills on aarch64 (30 stack accesses per
+# value); the hand-written loop stays a loop.
+[[bench_fixed.known]]
+compiler = "GNU"
+arch = "aarch64"
+case = "expression<mat6>"
+max_ratio = 1.5
+reason = "the unrolled 6x6 expression spills (1.2 measured)"

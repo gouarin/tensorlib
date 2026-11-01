@@ -1,0 +1,13 @@
+{
+  "benchmarks": [
+    {"run_name": "expression_fixed<small>", "run_type": "iteration", "real_time": 210.0},
+    {"run_name": "expression_fixed<small>", "run_type": "iteration", "real_time": 200.0},
+    {"run_name": "expression_fixed<small>", "run_type": "iteration", "real_time": 205.0},
+    {"run_name": "expression_loop<small>", "run_type": "iteration", "real_time": 100.0},
+    {"run_name": "expression_loop<small>", "run_type": "iteration", "real_time": 101.0},
+    {"run_name": "expression_loop<small>", "run_type": "iteration", "real_time": 99.0},
+    {"run_name": "compound_fixed<big>", "run_type": "iteration", "real_time": 250.0},
+    {"run_name": "compound_loop<big>", "run_type": "iteration", "real_time": 100.0},
+    {"run_name": "compound_flat<big>", "run_type": "iteration", "real_time": 90.0}
+  ]
+}

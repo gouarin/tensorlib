@@ -6,6 +6,7 @@ The spec is [the architecture spec](../core-architecture/spec.md), approved on 2
 
 - Each ticket fits one agent session and ends with working, tested behaviour. Its tests follow [Testing and benchmarking](../core-architecture/spec.md#16-testing-and-benchmarking), and later tickets extend the window generator with what they add.
 - Each ticket links to the spec sections, decision tickets and ADRs it implements, and lists what it leaves to other tickets.
+- Each ticket documents the interface it adds in the same branch: Doxygen comments on every public entity and a page of the Sphinx site (`docs/source/`), built without warnings by CI. See `CONTRIBUTING.md`.
 - The order follows [Suggested order of work](../core-architecture/spec.md#suggested-order-of-work): the serial backend and the front end first, so that every later backend has an oracle.
 - `ready-for-agent` tickets can be taken by an agent once their blockers are resolved. `ready-for-human` tickets need machines, accounts or a maintainer.
 - [Rerun the fusion benchmark on an HPC node and a GPU](../core-architecture/issues/19-rerun-fusion-benchmark-hpc-gpu.md) stays on the architecture map. The GPU lowering tickets carry its device checks.

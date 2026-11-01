@@ -6,6 +6,7 @@ project(tensorlib
     LANGUAGES CXX)
 
 option(TL_BUILD_TESTS "Build the tests" ${PROJECT_IS_TOP_LEVEL})
+option(TL_BUILD_BENCHMARKS "Build the benchmarks" OFF)
 option(TL_FETCH_DEPS "Fetch missing dependencies with FetchContent (for developers)" OFF)
 option(TL_WARNINGS_AS_ERRORS "Turn compiler warnings into errors (CI only)" OFF)
 option(TL_ENABLE_ASSERTIONS "Host-side assertions in public headers; does not change the ABI" OFF)
@@ -20,6 +21,11 @@ if(TL_BUILD_TESTS)
     enable_testing()
     add_subdirectory(tests)
     add_subdirectory(examples)
+endif()
+
+if(TL_BUILD_BENCHMARKS)
+    enable_testing()
+    add_subdirectory(benchmarks)
 endif()
 
 include(CMakePackageConfigHelpers)

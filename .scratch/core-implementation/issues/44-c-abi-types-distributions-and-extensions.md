@@ -12,7 +12,7 @@ Builds on: [C ABI core](43-c-abi-core.md), [Traced functions, traced combiners a
 
 ## What to build
 
-- Structured `tl_dtype` with components (`fixed`) and opaque user types; memory spaces and layouts.
+- Structured `tl_dtype` with components (`fixed`) and opaque user types; memory spaces and layouts. The component rank has no cap, so the extents cannot live in a fixed-size array inside `tl_dtype`.
 - `tl_communicator*` from the Fortran MPI handle, `tl_distribution*`, `tl_local_part`.
 - `tl_trace` and external-function registration; backend and resource selection by name.
 
