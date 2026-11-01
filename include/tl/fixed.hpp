@@ -229,10 +229,11 @@ namespace tl
         TL_ALWAYS_INLINE constexpr R elementwise(Op op, const A& a, const B& b) noexcept
         {
             using T = typename element_traits<result_of<A, B>>::scalar;
-            using U = typename element_traits<R>::scalar;
+            using U                    = typename element_traits<R>::scalar;
+            constexpr std::size_t size = product(R::shape());
             R result{};
             TL_UNROLL_ELEMENTS
-            for (std::size_t i = 0; i < product(R::shape()); ++i)
+            for (std::size_t i = 0; i < size; ++i)
             {
                 result.elements[i] = static_cast<U>(op(component<T>(a, i), component<T>(b, i)));
             }
@@ -243,10 +244,11 @@ namespace tl
         template <class A, class Op, class B>
         TL_ALWAYS_INLINE constexpr void update(A& target, Op op, const B& operand) noexcept
         {
-            using T         = element_of<A>;
-            auto* const out = target.data();
+            using T                    = element_of<A>;
+            constexpr std::size_t size = product(value_of<A>::shape());
+            auto* const out            = target.data();
             TL_UNROLL_ELEMENTS
-            for (std::size_t i = 0; i < product(value_of<A>::shape()); ++i)
+            for (std::size_t i = 0; i < size; ++i)
             {
                 out[i] = static_cast<T>(op(out[i], component<T>(operand, i)));
             }
